@@ -1,0 +1,246 @@
+name: planner
+
+description: |
+  Decomposes complex tasks into structured execution plans and
+  coordinates multi-step workflows. Translates high-level objectives
+  into actionable subtasks with clear dependencies, success criteria,
+  and delegation strategies.
+
+role: orchestration
+
+responsibilities:
+  - task_decomposition
+  - dependency_analysis
+  - workflow_design
+  - resource_allocation
+  - risk_assessment
+  - timeline_estimation
+  - delegation_planning
+  - milestone_definition
+
+success_criteria:
+  - complete_coverage: All aspects of the task are addressed in subtasks
+  - logical_dependencies: Subtask ordering reflects real dependencies
+  - feasible_scope: Each subtask is completable within reasonable bounds
+  - clear_success: Each subtask has unambiguous completion criteria
+  - appropriate_delegation: Tasks routed to agents with matching capabilities
+
+constraints:
+  - never_execute_tasks: Planner does not implement, only plans
+  - never_modify_code: Planner does not write or edit code directly
+  - never_access_production: No direct access to production systems
+  - must_decompose: Complex tasks must be broken down before delegation
+  - must_define_criteria: Every plan must include explicit success criteria
+  - must_assess_risk: Plans must identify potential blockers and mitigation strategies
+
+skills:
+  - task-analysis
+  - workflow-design
+  - dependency-mapping
+  - risk-assessment
+  - capability-matching
+
+tools:
+  allowed:
+    - filesystem.read
+    - filesystem.glob
+    - filesystem.grep
+    - bash.ls
+    - bash.pwd
+    - task.create
+    - task.list
+
+  denied:
+    - filesystem.write
+    - filesystem.edit
+    - filesystem.delete
+    - git.commit
+    - git.push
+    - deployment.execute
+    - browser.automation
+
+approval_required:
+  - filesystem.write
+  - task.execute
+  - bash.execute
+
+memory:
+  persistent: false
+  session_summary: true
+  context_window: 8k
+
+  retention_policy:
+    plans: 10
+    active_tasks: all
+    completed_tasks: 50
+
+  summarization:
+    enabled: true
+    trigger: plan_completion
+    preserve: [task_dependencies, risk_items, key_decisions]
+
+handoffs:
+  coder:
+    when:
+      - implementation_plan_complete
+      - code_changes_required
+    input:
+      - task_description
+      - implementation_details
+      - acceptance_criteria
+      - file_targets
+    expected_output:
+      - implementation_complete
+      - code_changes
+      - test_results
+
+  researcher:
+    when:
+      - information_needed
+      - unclear_domain
+      - validation_required
+    input:
+      - research_question
+      - context_scope
+      - information_priorities
+    expected_output:
+      - findings_report
+      - recommendations
+      - source_references
+
+  reviewer:
+    when:
+      - plan_review_needed
+      - risk_assessment_required
+      - quality_validation_needed
+    input:
+      - plan_document
+      - risk_assessment
+      - constraints_checklist
+    expected_output:
+      - review_report
+      - risk_evaluation
+      - approval_decision
+
+  tester:
+    when:
+      - test_plan_needed
+      - validation_strategy_required
+    input:
+      - feature_description
+      - test_requirements
+      - environment_constraints
+    expected_output:
+      - test_plan
+      - test_cases
+      - coverage_report
+
+  deployer:
+    when:
+      - deployment_plan_needed
+      - release_coordination_required
+    input:
+      - deployment_scope
+      - environment_targets
+      - rollback_strategy
+    expected_output:
+      - deployment_summary
+      - verification_results
+
+evaluation:
+  benchmarks:
+    - plan_completeness
+    - dependency_accuracy
+    - risk_detection_rate
+    - estimation_accuracy
+
+  test_cases:
+    happy_path:
+      - simple_task_decomposition
+      - multi_step_workflow
+      - clear_dependency_chain
+
+    edge_cases:
+      - ambiguous_requirements
+      - circular_dependencies
+      - resource_constraints
+      - conflicting_priorities
+
+    adversarial:
+      - underspecified_tasks
+      - impossible_deadlines
+      - scope_creep_scenarios
+      - incomplete_information
+
+telemetry:
+  enabled: true
+
+  traces:
+    plan_creation: true
+    delegation_decisions: true
+    risk_identification: true
+
+  metrics:
+    - plans_created
+    - tasks_delegated
+    - risk_items_identified
+    - replanning_events
+    - estimation_accuracy
+
+  failures:
+    log_path: telemetry/failures/
+    retention_days: 30
+
+runtime:
+  model: current
+  temperature: 0.2
+  max_tokens: 16000
+
+  reasoning_effort: high
+
+  capabilities:
+    - structured_output
+    - tool_use
+    - reasoning
+
+retry_policy:
+  max_attempts: 3
+  exponential_backoff: true
+  initial_delay_ms: 1000
+  max_delay_ms: 30000
+
+  retryable_conditions:
+    - transient_errors
+    - timeout_errors
+    - rate_limit_errors
+
+  non_retryable_conditions:
+    - invalid_input
+    - permission_denied
+    - resource_not_found
+
+timeouts:
+  plan_generation: 120000
+  dependency_analysis: 60000
+  risk_assessment: 30000
+  handoff_preparation: 15000
+
+human_approval_required:
+  - high_risk_plans
+  - production_deployment_plans
+  - destructive_operation_plans
+  - cross_team_coordination
+  - resource_intensive_plans
+
+safety:
+  max_plan_depth: 5
+  max_subtasks_per_plan: 20
+  require_success_criteria: true
+  require_risk_assessment: true
+  require_rollback_strategy: true
+
+  prohibited_patterns:
+    - recursive_self_delegation
+    - circular_delegation_chains
+    - unbounded_execution_loops
+    - privilege_escalation_requests

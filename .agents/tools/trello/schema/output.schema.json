@@ -1,0 +1,218 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Trello Tool Output",
+  "description": "Output schema for the Trello API tool",
+  "type": "object",
+  "required": ["success", "operation", "metadata"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the operation completed successfully"
+    },
+    "operation": {
+      "type": "string",
+      "description": "The operation that was performed",
+      "enum": [
+        "get_boards",
+        "get_board",
+        "get_lists",
+        "get_cards",
+        "get_card",
+        "create_card",
+        "update_card",
+        "move_card",
+        "delete_card",
+        "add_comment",
+        "get_members",
+        "search"
+      ]
+    },
+    "data": {
+      "description": "Response data (structure varies by operation)"
+    },
+    "error": {
+      "type": "object",
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "Whether the error might succeed on retry"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["execution_ms", "timestamp"],
+      "properties": {
+        "execution_ms": {
+          "type": "number",
+          "description": "Execution time in milliseconds"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the response"
+        }
+      }
+    }
+  },
+
+  "definitions": {
+    "board": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "desc": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "idOrganization": { "type": ["string", "null"] },
+        "dateLastActivity": { "type": ["string", "null"], "format": "date-time" },
+        "closed": { "type": "boolean" },
+        "prefs": {
+          "type": "object",
+          "properties": {
+            "permissionLevel": { "type": "string" },
+            "hideVotes": { "type": "boolean" },
+            "voting": { "type": "string" },
+            "comments": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "list": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "idBoard": { "type": "string" },
+        "pos": { "type": "number" },
+        "closed": { "type": "boolean" }
+      }
+    },
+
+    "card": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "desc": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "shortUrl": { "type": "string", "format": "uri" },
+        "idBoard": { "type": "string" },
+        "idList": { "type": "string" },
+        "due": { "type": ["string", "null"], "format": "date-time" },
+        "dueComplete": { "type": "boolean" },
+        "pos": { "type": "number" },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "color": { "type": "string" }
+            }
+          }
+        },
+        "members": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/member" }
+        }
+      }
+    },
+
+    "member": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "username": { "type": "string" },
+        "avatarUrl": { "type": ["string", "null"], "format": "uri" },
+        "initials": { "type": "string" }
+      }
+    },
+
+    "comment": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "idMemberCreator": { "type": "string" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "card": { "$ref": "#/definitions/card" }
+          }
+        },
+        "type": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "memberCreator": { "$ref": "#/definitions/member" }
+      }
+    },
+
+    "search_results": {
+      "type": "object",
+      "properties": {
+        "boards": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/board" }
+        },
+        "cards": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/card" }
+        },
+        "lists": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/list" }
+        },
+        "members": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/member" }
+        }
+      }
+    }
+  },
+
+  "examples": [
+    {
+      "success": true,
+      "operation": "get_boards",
+      "data": [
+        {
+          "id": "5f3c2b1a4e9f8b2e1c3d4e5f",
+          "name": "Project Management",
+          "desc": "Main project board",
+          "url": "https://trello.com/b/example/project-management",
+          "idOrganization": null,
+          "dateLastActivity": "2024-01-15T10:30:00.000Z"
+        }
+      ],
+      "metadata": {
+        "execution_ms": 523.45,
+        "timestamp": "2024-01-15T10:30:00.000Z"
+      }
+    },
+    {
+      "success": false,
+      "operation": "get_card",
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "Card not found",
+        "retryable": false
+      },
+      "metadata": {
+        "execution_ms": 234.12,
+        "timestamp": "2024-01-15T10:30:00.000Z"
+      }
+    }
+  ]
+}

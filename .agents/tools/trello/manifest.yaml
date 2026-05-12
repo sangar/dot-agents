@@ -1,0 +1,247 @@
+name: trello
+description: Secure, deterministic tool for interacting with the Trello REST API
+version: 1.0.0
+
+entrypoint:
+  type: ruby
+  command: ruby tool.rb
+
+capabilities:
+  - trello
+  - project-management
+  - task-management
+  - kanban
+
+input_schema: schema/input.schema.json
+output_schema: schema/output.schema.json
+
+permissions:
+  network:
+    allow:
+      - api.trello.com:443
+  filesystem:
+    read: []
+    write: []
+  environment:
+    required:
+      - TRELLO_API_KEY
+      - TRELLO_API_TOKEN
+    optional: []
+
+timeouts:
+  execution_seconds: 60
+
+retries:
+  max_attempts: 3
+  backoff: exponential
+  initial_delay_ms: 1000
+
+observability:
+  structured_logs: true
+  tracing: true
+  metrics:
+    - request_count
+    - error_count
+    - latency_ms
+
+safety:
+  destructive: true
+  confirmation_required:
+    - delete_card
+  idempotent_operations:
+    - get_boards
+    - get_board
+    - get_lists
+    - get_cards
+    - get_card
+    - get_members
+    - search
+
+operations:
+  get_boards:
+    description: Get all boards for the authenticated user
+    parameters: {}
+
+  get_board:
+    description: Get a specific board by ID
+    parameters:
+      board_id:
+        type: string
+        required: true
+        description: Trello board ID
+
+  get_lists:
+    description: Get all lists on a board
+    parameters:
+      board_id:
+        type: string
+        required: true
+        description: Trello board ID
+
+  get_cards:
+    description: Get cards from a list or board
+    parameters:
+      list_id:
+        type: string
+        required: false
+        description: Trello list ID
+      board_id:
+        type: string
+        required: false
+        description: Trello board ID
+    oneOfRequired: [list_id, board_id]
+
+  get_card:
+    description: Get a specific card by ID
+    parameters:
+      card_id:
+        type: string
+        required: true
+        description: Trello card ID
+
+  create_card:
+    description: Create a new card in a list
+    parameters:
+      list_id:
+        type: string
+        required: true
+        description: Trello list ID where the card will be created
+      name:
+        type: string
+        required: true
+        description: Card name (1-16384 characters)
+      desc:
+        type: string
+        required: false
+        description: Card description
+      due:
+        type: string
+        required: false
+        description: Due date in ISO 8601 format
+      pos:
+        type: [string, number]
+        required: false
+        description: Position (top, bottom, or numeric position)
+
+  update_card:
+    description: Update an existing card
+    parameters:
+      card_id:
+        type: string
+        required: true
+        description: Trello card ID
+      name:
+        type: string
+        required: false
+        description: New card name
+      desc:
+        type: string
+        required: false
+        description: New card description
+      due:
+        type: string
+        required: false
+        description: New due date
+      pos:
+        type: [string, number]
+        required: false
+        description: New position
+      list_id:
+        type: string
+        required: false
+        description: Move card to this list ID
+
+  move_card:
+    description: Move a card to a different list
+    parameters:
+      card_id:
+        type: string
+        required: true
+        description: Trello card ID
+      list_id:
+        type: string
+        required: true
+        description: Destination list ID
+      pos:
+        type: [string, number]
+        required: false
+        description: Position in the new list
+
+  delete_card:
+    description: Delete a card permanently
+    parameters:
+      card_id:
+        type: string
+        required: true
+        description: Trello card ID
+    destructive: true
+
+  add_comment:
+    description: Add a comment to a card
+    parameters:
+      card_id:
+        type: string
+        required: true
+        description: Trello card ID
+      text:
+        type: string
+        required: true
+        description: Comment text
+
+  get_members:
+    description: Get members of a board or card
+    parameters:
+      board_id:
+        type: string
+        required: false
+        description: Trello board ID
+      card_id:
+        type: string
+        required: false
+        description: Trello card ID
+    oneOfRequired: [board_id, card_id]
+
+  search:
+    description: Search across Trello
+    parameters:
+      query:
+        type: string
+        required: true
+        description: Search query string
+      model_types:
+        type: string
+        required: false
+        default: cards,boards
+        description: Comma-separated model types to search
+      partial:
+        type: boolean
+        required: false
+        default: false
+        description: Allow partial matches
+
+tags:
+  - trello
+  - kanban
+  - project-management
+  - task-management
+  - api-integration
+
+maintainers:
+  - agent-tools-team
+
+maturity: production
+
+supports_streaming: false
+
+supports_parallel_calls: true
+
+cost_estimate:
+  cpu: low
+  memory: low
+  network: medium
+  notes: Network calls to Trello API
+
+documentation:
+  readme: README.md
+  security: SECURITY.md
+  examples: examples/

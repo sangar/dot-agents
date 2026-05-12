@@ -1,0 +1,370 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Trello Tool Input",
+  "description": "Input schema for the Trello API tool",
+  "type": "object",
+  "required": ["operation"],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "The Trello operation to perform",
+      "enum": [
+        "get_boards",
+        "get_board",
+        "get_lists",
+        "get_cards",
+        "get_card",
+        "create_card",
+        "update_card",
+        "move_card",
+        "delete_card",
+        "add_comment",
+        "get_members",
+        "search"
+      ]
+    },
+    "params": {
+      "type": "object",
+      "description": "Operation-specific parameters",
+      "additionalProperties": false
+    },
+    "api_key": {
+      "type": "string",
+      "description": "Trello API key (overrides TRELLO_API_KEY environment variable)"
+    },
+    "api_token": {
+      "type": "string",
+      "description": "Trello API token (overrides TRELLO_API_TOKEN environment variable)"
+    }
+  },
+  "additionalProperties": false,
+
+  "allOf": [
+    {
+      "if": {
+        "properties": { "operation": { "const": "get_board" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["board_id"],
+            "properties": {
+              "board_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "get_lists" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["board_id"],
+            "properties": {
+              "board_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "get_cards" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "anyOf": [
+              {
+                "required": ["list_id"],
+                "properties": {
+                  "list_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-zA-Z0-9_-]+$"
+                  }
+                }
+              },
+              {
+                "required": ["board_id"],
+                "properties": {
+                  "board_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-zA-Z0-9_-]+$"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "get_card" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["card_id"],
+            "properties": {
+              "card_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "create_card" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["list_id", "name"],
+            "properties": {
+              "list_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "desc": {
+                "type": "string"
+              },
+              "due": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pos": {
+                "anyOf": [
+                  { "type": "string", "enum": ["top", "bottom"] },
+                  { "type": "number" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "update_card" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["card_id"],
+            "properties": {
+              "card_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "desc": {
+                "type": "string"
+              },
+              "due": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pos": {
+                "anyOf": [
+                  { "type": "string", "enum": ["top", "bottom"] },
+                  { "type": "number" }
+                ]
+              },
+              "list_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "move_card" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["card_id", "list_id"],
+            "properties": {
+              "card_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "list_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "pos": {
+                "anyOf": [
+                  { "type": "string", "enum": ["top", "bottom"] },
+                  { "type": "number" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "delete_card" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["card_id"],
+            "properties": {
+              "card_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "add_comment" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["card_id", "text"],
+            "properties": {
+              "card_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "get_members" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "anyOf": [
+              {
+                "required": ["board_id"],
+                "properties": {
+                  "board_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-zA-Z0-9_-]+$"
+                  }
+                }
+              },
+              {
+                "required": ["card_id"],
+                "properties": {
+                  "card_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-zA-Z0-9_-]+$"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "search" } }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "required": ["query"],
+            "properties": {
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "model_types": {
+                "type": "string",
+                "default": "cards,boards"
+              },
+              "partial": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
