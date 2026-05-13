@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["command"],
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": ["query", "stats", "fields", "values", "hits", "cleanup"],
+      "description": "The command to execute"
+    },
+    "context": {
+      "type": "string",
+      "description": "Kubernetes context name for port-forwarding"
+    },
+    "query": {
+      "type": "string",
+      "default": "*",
+      "description": "LogsQL query string"
+    },
+    "start": {
+      "type": "string",
+      "default": "1h",
+      "description": "Start time - relative (5m, 1h, 24h) or absolute (2026-03-25T08:00:00Z)"
+    },
+    "end": {
+      "type": "string",
+      "description": "End time - relative or absolute. Default is now"
+    },
+    "field": {
+      "type": "string",
+      "description": "Field name for values or hits commands"
+    },
+    "limit": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "maximum": 10000,
+      "description": "Maximum number of results to return"
+    },
+    "format": {
+      "type": "string",
+      "enum": ["json", "table"],
+      "default": "json",
+      "description": "Output format"
+    },
+    "raw": {
+      "type": "boolean",
+      "default": false,
+      "description": "Disable PII scrubbing - WARNING: outputs raw customer data"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "command": { "const": "values" } }
+      },
+      "then": {
+        "required": ["context", "field"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "command": { "const": "hits" } }
+      },
+      "then": {
+        "required": ["context"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "command": { "const": "query" } }
+      },
+      "then": {
+        "required": ["context"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "command": { "const": "stats" } }
+      },
+      "then": {
+        "required": ["context"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "command": { "const": "fields" } }
+      },
+      "then": {
+        "required": ["context"]
+      }
+    }
+  ]
+}

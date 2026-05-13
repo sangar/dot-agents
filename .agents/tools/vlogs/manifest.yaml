@@ -1,0 +1,47 @@
+name: vlogs
+version: 1.0.0
+description: Query and analyze VictoriaLogs hosted in Kubernetes clusters with PII scrubbing
+
+entrypoint:
+  type: ruby
+  command: ruby tool.rb
+
+capabilities:
+  - read
+
+input_schema: schema/input.schema.json
+output_schema: schema/output.schema.json
+
+permissions:
+  network:
+    allow:
+      - localhost:9428
+  filesystem:
+    read:
+      - /tmp/vlogs-portforward.pid
+    write:
+      - /tmp/vlogs-portforward.pid
+  processes:
+    spawn: true
+    signals:
+      - TERM
+    
+timeouts:
+  execution_seconds: 120
+
+retries:
+  max_attempts: 2
+  backoff: exponential
+
+observability:
+  structured_logs: true
+  tracing: false
+
+safety:
+  destructive: false
+  requires_confirmation: false
+
+config:
+  env:
+    - VLOGS_SCRUB_KEY
+    - KUBECONFIG

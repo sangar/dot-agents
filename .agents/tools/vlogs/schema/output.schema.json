@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/queryOutput"
+    },
+    {
+      "$ref": "#/definitions/statsOutput"
+    },
+    {
+      "$ref": "#/definitions/fieldsOutput"
+    },
+    {
+      "$ref": "#/definitions/valuesOutput"
+    },
+    {
+      "$ref": "#/definitions/hitsOutput"
+    },
+    {
+      "$ref": "#/definitions/cleanupOutput"
+    }
+  ],
+  "definitions": {
+    "logEntry": {
+      "type": "object",
+      "properties": {
+        "_time": { "type": "string" },
+        "level": { "type": "string" },
+        "application": { "type": "string" },
+        "name": { "type": "string" },
+        "message": { "type": "string" },
+        "duration_ms": { "type": "number" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "method": { "type": "string" },
+            "path": { "type": "string" },
+            "status": { "type": ["integer", "string"] },
+            "controller": { "type": "string" },
+            "action": { "type": "string" },
+            "db_runtime": { "type": "number" },
+            "queries_count": { "type": "integer" }
+          }
+        },
+        "exception": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "message": { "type": "string" }
+          }
+        },
+        "named_tags": {
+          "type": "object",
+          "properties": {
+            "request_id": { "type": "string" },
+            "queue": { "type": "string" },
+            "jid": { "type": "string" }
+          }
+        }
+      }
+    },
+    "queryOutput": {
+      "type": "object",
+      "properties": {
+        "command": { "const": "query" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/logEntry" }
+        },
+        "count": { "type": "integer" },
+        "format": { "type": "string" }
+      },
+      "required": ["command", "entries", "count"]
+    },
+    "statsOutput": {
+      "type": "object",
+      "properties": {
+        "command": { "const": "stats" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "resultType": { "type": "string" },
+            "result": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "metric": { "type": "object" },
+                  "value": {
+                    "type": "array",
+                    "items": [
+                      { "type": "number" },
+                      { "type": "string" }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "format": { "type": "string" }
+      },
+      "required": ["command", "data"]
+    },
+    "fieldsOutput": {
+      "type": "object",
+      "properties": {
+        "command": { "const": "fields" },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "hits": { "type": "integer" }
+            },
+            "required": ["value", "hits"]
+          }
+        },
+        "count": { "type": "integer" }
+      },
+      "required": ["command", "fields", "count"]
+    },
+    "valuesOutput": {
+      "type": "object",
+      "properties": {
+        "command": { "const": "values" },
+        "field": { "type": "string" },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": { "type": ["string", "number", "boolean", "null"] },
+              "hits": { "type": "integer" }
+            },
+            "required": ["value", "hits"]
+          }
+        },
+        "count": { "type": "integer" }
+      },
+      "required": ["command", "field", "values", "count"]
+    },
+    "hitsOutput": {
+      "type": "object",
+      "properties": {
+        "command": { "const": "hits" },
+        "timestamps": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "values": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "total": { "type": "integer" }
+      },
+      "required": ["command"]
+    },
+    "cleanupOutput": {
+      "type": "object",
+      "properties": {
+        "command": { "const": "cleanup" },
+        "status": { "type": "string" },
+        "message": { "type": "string" },
+        "pid": { "type": ["integer", "null"] }
+      },
+      "required": ["command", "status", "message"]
+    }
+  }
+}

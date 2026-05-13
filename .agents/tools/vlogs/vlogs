@@ -1,0 +1,200 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Simple wrapper for vlogs tool - easier command-line interface
+# Usage: vlogs <command> [options]
+
+require 'json'
+require 'optparse'
+
+VLOGS_DIR = File.expand_path('..', __FILE__)
+TOOL_PATH = File.join(VLOGS_DIR, 'tool.rb')
+
+unless File.exist?(TOOL_PATH)
+  puts "Error: tool.rb not found at #{TOOL_PATH}"
+  exit 1
+end
+
+# Parse command line
+options = {
+  context: nil,
+  query: '*',
+  start: '1h',
+  limit: 50,
+  format: 'table',
+  raw: false,
+  field: nil
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: vlogs [options]"
+  opts.separator ""
+  opts.separator "Commands (first argument):"
+  opts.separator "  query    - Search logs"
+  opts.separator "  stats    - Run aggregation queries"  
+  opts.separator "  fields   - List available fields"
+  opts.separator "  values   - List values for a field"
+  opts.separator "  hits     - Show log volume"
+  opts.separator "  cleanup  - Kill port-forward"
+  opts.separator ""
+  opts.separator "Options:"
+
+  opts.on("-c", "--context CONTEXT", "Kubernetes context (required for most commands)") do |v|
+    options[:context] = v
+  end
+
+  opts.on("-q", "--query QUERY", "LogsQL query (default: *)") do |v|
+    options[:query] = v
+  end
+
+  opts.on("-s", "--start START", "Start time: 5m, 1h, 24h, or absolute time") do |v|
+    options[:start] = v
+  end
+
+  opts.on("-n", "--limit LIMIT", Integer, "Max results (default: 50)") do |v|
+    options[:limit] = v
+  end
+
+  opts.on("-f", "--field FIELD", "Field name (for values command)") do |v|
+    options[:field] = v
+  end
+
+  opts.on("--format FORMAT", ["json", "table"], "Output format: json or table") do |v|
+    options[:format] = v
+  end
+
+  opts.on("--raw", "Disable PII scrubbing") do
+    options[:raw] = true
+  end
+
+  opts.on("-h", "--help", "Show help") do
+    puts opts
+    puts ""
+    puts "Examples:"
+    puts "  vlogs query -c production --query \"level:ERROR\""
+    puts "  vlogs query -c staging --start 30m --format json"
+    puts "  vlogs stats -c production --query \"stats count(*) by (level)\""
+    puts "  vlogs fields -c production"
+    puts "  vlogs values -c production --field level"
+    puts "  vlogs cleanup"
+    puts ""
+    puts "Environment Variables:"
+    puts "  VLOGS_SCRUB_KEY  - Secret key for PII scrubbing (required unless --raw)"
+    exit
+  end
+end
+
+begin
+  parser.parse!
+rescue OptionParser::InvalidOption => e
+  puts "Error: #{e.message}"
+  exit 1
+end
+
+# Get command
+command = ARGV[0]
+
+if command.nil? || command == '--help' || command == '-h'
+  puts parser
+  exit
+end
+
+# Validate command
+valid_commands = %w[query stats fields values hits cleanup]
+unless valid_commands.include?(command)
+  puts "Error: Unknown command '#{command}'"
+  puts "Valid commands: #{valid_commands.join(', ')}"
+  exit 1
+end
+
+# Build JSON input for the tool
+input = {
+  'command' => command
+}
+
+# Add context if provided (or try to detect current context)
+if options[:context]
+  input['context'] = options[:context]
+elsif command != 'cleanup'
+  # Try to get current kubectl context
+  current_context = `kubectl config current-context 2>/dev/null`.strip
+  if current_context && !current_context.empty?
+    input['context'] = current_context
+    puts "Using current kubectl context: #{current_context}" if STDOUT.tty?
+  else
+    puts "Error: --context is required (or set kubectl context)"
+    exit 1
+  end
+end
+
+# Add other options
+input['query'] = options[:query] if options[:query]
+input['start'] = options[:start] if options[:start]
+input['limit'] = options[:limit] if options[:limit]
+input['format'] = options[:format] if options[:format]
+input['raw'] = options[:raw] if options[:raw]
+input['field'] = options[:field] if options[:field]
+
+# Check for scrub key
+if !options[:raw] && command != 'cleanup'
+  scrub_key = ENV['VLOGS_SCRUB_KEY']
+  if scrub_key.nil? || scrub_key.strip.empty?
+    puts "Error: VLOGS_SCRUB_KEY environment variable is not set."
+    puts "Set it with: export VLOGS_SCRUB_KEY=\"your-secret-key\""
+    puts "Or use --raw to disable scrubbing (emits raw customer data)"
+    exit 1
+  end
+end
+
+# Run the tool
+require 'open3'
+
+json_input = JSON.generate(input)
+
+stdout, stderr, status = Open3.capture3("ruby #{TOOL_PATH}", stdin_data: json_input)
+
+if status.success?
+  begin
+    result = JSON.parse(stdout)
+    
+    if result['error']
+      puts "Error: #{result['message']}"
+      exit 1
+    end
+    
+    # Output based on format
+    case command
+    when 'query', 'stats', 'fields', 'values'
+      if options[:format] == 'table' && result['table_lines']
+        # Print table lines
+        result['table_lines'].each { |line| puts line }
+      elsif result['entries']
+        # Print entries as JSON
+        result['entries'].each { |entry| puts JSON.generate(entry) }
+      elsif result['data']
+        # Print data
+        puts JSON.pretty_generate(result['data'])
+      else
+        puts stdout
+      end
+    when 'hits'
+      puts JSON.pretty_generate(result['data']) if result['data']
+    when 'cleanup'
+      puts result['message'] if result['message']
+    end
+    
+    # Print count if available
+    if result['count']
+      puts ""
+      puts "Total: #{result['count']} entries" if STDOUT.tty?
+    end
+    
+  rescue JSON::ParserError
+    puts stdout
+  end
+else
+  puts "Error running tool:"
+  puts stderr unless stderr.empty?
+  puts stdout unless stdout.empty?
+  exit 1
+end
