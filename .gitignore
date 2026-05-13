@@ -1,5 +1,61 @@
-*
-!.agents/
-!.config/
-!.claude/
+.DS_Store
+.AppleDouble
+.LSOverride
 
+# Ruby (for your tool.rb files)
+*.gem
+*.rbc
+/.config
+/coverage/
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/examples.txt
+/test/tmp/
+/test/version_tmp/
+/tmp/
+/vendor/bundle
+/lib/bundler/man/
+.ruby-version
+.ruby-gemset
+
+# Environment & Credentials
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+secrets.json
+.trello_token
+.errbit_token
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+log/
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Testing
+/test-results/
+/coverage/
+.nyc_output
+
+# Cache
+.cache/
+*.cache
