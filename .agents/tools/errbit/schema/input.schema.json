@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["action", "api_key"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "The API action to perform",
+      "enum": [
+        "list_problems",
+        "get_problem",
+        "list_notices",
+        "get_stats",
+        "list_comments",
+        "create_comment"
+      ]
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key of the Errbit app to access. Each app has its own unique API key."
+    },
+    "base_url": {
+      "type": "string",
+      "description": "Errbit instance base URL. Can also be set via ERRBIT_BASE_URL environment variable. Defaults to https://errbit.dialogapi.no"
+    },
+    "problem_id": {
+      "type": "string",
+      "description": "Problem ID for get_problem, list_comments, and create_comment actions"
+    },
+    "start_date": {
+      "type": "string",
+      "description": "Start date filter in ISO 8601 format (e.g., 2024-01-01T00:00:00Z)"
+    },
+    "end_date": {
+      "type": "string",
+      "description": "End date filter in ISO 8601 format (e.g., 2024-12-31T23:59:59Z)"
+    },
+    "body": {
+      "type": "string",
+      "description": "Comment body for create_comment action"
+    }
+  },
+  "additionalProperties": false
+}

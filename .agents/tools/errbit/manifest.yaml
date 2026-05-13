@@ -1,0 +1,42 @@
+name: errbit
+version: 1.1.0
+description: Client for interacting with Errbit error tracking instance at errbit.dialogapi.no
+
+entrypoint:
+  type: ruby
+  command: ruby tool.rb
+
+capabilities:
+  - read
+  - write
+
+input_schema: schema/input.schema.json
+output_schema: schema/output.schema.json
+
+permissions:
+  network:
+    allow:
+      - errbit.dialogapi.no
+  filesystem:
+    read: []
+    write: []
+
+timeouts:
+  execution_seconds: 60
+
+retries:
+  max_attempts: 2
+  backoff: exponential
+
+observability:
+  structured_logs: true
+  tracing: false
+
+safety:
+  destructive: false
+  requires_confirmation: false
+
+config:
+  env:
+    - ERRBIT_API_KEY
+    - ERRBIT_BASE_URL
