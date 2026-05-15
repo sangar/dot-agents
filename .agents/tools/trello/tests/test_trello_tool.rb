@@ -183,11 +183,20 @@ class TrelloToolTest
     end
 
     test "returns structured error on nil credentials" do
+      # Temporarily unset environment variables to test nil credentials
+      original_key = ENV.delete('TRELLO_API_KEY')
+      original_token = ENV.delete('TRELLO_API_TOKEN')
       begin
-        TrelloTool.new(nil, nil)
-        raise "Expected AuthenticationError"
-      rescue TrelloTool::AuthenticationError => e
-        # Expected
+        begin
+          TrelloTool.new(nil, nil)
+          raise "Expected AuthenticationError"
+        rescue TrelloTool::AuthenticationError => e
+          # Expected
+        end
+      ensure
+        # Restore environment variables
+        ENV['TRELLO_API_KEY'] = original_key if original_key
+        ENV['TRELLO_API_TOKEN'] = original_token if original_token
       end
     end
 
