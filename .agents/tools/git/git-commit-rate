@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+git log --format='%ad' --date=format:'%Y-%m' | \
+  sort | \
+  uniq -c

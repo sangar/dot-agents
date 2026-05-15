@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+git log --oneline --since="1 year ago" | \
+  grep -iE 'revert|hotfix|emergency|rollback'

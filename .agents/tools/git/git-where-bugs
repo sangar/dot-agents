@@ -1,0 +1,7 @@
+#!/bin/zsh
+
+git log -i -E --grep="fix|bug|broken" --name-only --format='' | \
+  sort | \
+  uniq -c | \
+  sort -nr | \
+  head -20
