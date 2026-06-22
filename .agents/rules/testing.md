@@ -27,6 +27,7 @@ After making changes to code, **ALWAYS** run the relevant tests to ensure nothin
 - Use test doubles sparingly — only mock external dependencies (APIs, Stripe), not internal code
 - Tests should not break on refactoring
 - Don't test individual parameters separately when they use the same code path
+- Keep test count to a minimum, remove redundant or unnecessary tests
 
 ### Test Coverage
 
