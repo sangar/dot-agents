@@ -238,9 +238,10 @@ class TrelloTool
     body[:due] = params['due'] if params.key?('due')
     body[:pos] = params['pos'] if params['pos']
     body[:idList] = params['list_id'] if params['list_id']
+    body[:closed] = params['closed'] if params.key?('closed')
 
     if body.empty?
-      raise ValidationError, 'At least one field to update is required (name, desc, due, pos, list_id)'
+      raise ValidationError, 'At least one field to update is required (name, desc, due, pos, list_id, closed)'
     end
 
     make_request('PUT', "/cards/#{sanitize_id(card_id)}", {}, body)
