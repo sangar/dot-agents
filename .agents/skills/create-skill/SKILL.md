@@ -65,6 +65,12 @@ skill-name/
 | Personal | ~/.agents/skills/skill-name/ | Available across all your projects |
 | Project | .agents/skills/skill-name/ | Shared with anyone using the repository |
 
+Claude Code only discovers skills from `~/.claude/skills/` and the project's `.claude/skills/`. In the dot-agents repository, `~/.claude/skills` points at the repository's `.claude/skills/`, so after creating a personal skill add a tracked relative symlink there, from the repository root:
+
+```bash
+ln -s ../../.agents/skills/skill-name .claude/skills/skill-name
+```
+
 
 ### SKILL.md Structure
 

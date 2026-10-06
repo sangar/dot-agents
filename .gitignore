@@ -59,3 +59,6 @@ temp/
 # Cache
 .cache/
 *.cache
+
+# Claude Code synced skills (managed by claude.ai, per machine)
+/.claude/skills/synced/

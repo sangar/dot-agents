@@ -40,10 +40,12 @@ This is a personal agent configuration repository that provides:
 │       ├── trello/
 │       └── vlogs/
 ├── .claude/
-│   └── CLAUDE.md              # Claude-specific configuration
-└── .config/
-    └── opencode/
-        └── AGENTS.md          # OpenCode configuration reference
+│   ├── CLAUDE.md              # Claude-specific configuration
+│   └── skills/                # Symlinks into .agents/skills/ for Claude Code discovery
+├── .config/
+│   └── opencode/
+│       └── AGENTS.md          # OpenCode configuration reference
+└── install.sh                 # Links ~/.agents, ~/.claude/CLAUDE.md and ~/.claude/skills here
 ```
 
 ## Available Skills
@@ -70,6 +72,14 @@ This is a personal agent configuration repository that provides:
 | `git-scripts` | Git analysis utilities | Shell |
 | `trello` | Trello API integration | Ruby |
 | `vlogs` | VictoriaLogs queries | Ruby |
+
+## Setup
+
+On a new machine, clone the repository and run the install script once. It symlinks `~/.agents`, `~/.claude/CLAUDE.md` and `~/.claude/skills` into the repository and is safe to rerun.
+
+```bash
+./install.sh
+```
 
 ## Usage
 
@@ -100,10 +110,26 @@ Agent behavior is guided by:
 - `.agents/rules/*.md` - Persistent rules
 - `~/.agents/rules/*.md` - Global user rules (not in this repo)
 
+## Skill Locations
+
+Skills live in `.agents/skills/<name>/SKILL.md`. Claude Code does not look there. It only discovers skills from `~/.claude/skills/`, project `.claude/skills/`, plugins, and synced skills.
+
+So `.claude/skills/` in this repository holds a tracked relative symlink per skill, pointing at `../../.agents/skills/<name>`, and `~/.claude/skills` is a symlink to that directory. Pulling the repository is enough for a new skill to appear in Claude Code on every machine.
+
+When adding a skill:
+
+```bash
+ln -s ../../.agents/skills/<name> .claude/skills/<name>
+```
+
+The `@~/.agents/skills/**/SKILL.md` line in `.agents/AGENTS.md` does not expand. `@`-imports take literal paths only. A skill is inlined into every session only when listed with its full path, which is heavier than skill discovery and is reserved for skills that should always be in context.
+
+The `synced/` folder inside `.claude/skills/` is managed by claude.ai and is gitignored.
+
 ## Development
 
 This repository is actively developed. When modifying:
-- **Skills**: Update corresponding `SKILL.md` files
+- **Skills**: Update corresponding `SKILL.md` files, and add a symlink under `.claude/skills/` for new skills (see Skill Locations)
 - **Tools**: Update `README.md` and `USAGE.md` documentation
 - **Rules**: Changes take effect immediately for agent sessions
 

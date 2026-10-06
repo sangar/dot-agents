@@ -1,5 +1,7 @@
 # Agent Skills
 
+Skills live in `~/.agents/skills/<name>/SKILL.md`. Claude Code only discovers skills from `~/.claude/skills/`, which is a symlink to this repository's `.claude/skills/`. Each skill gets a tracked relative symlink there: `ln -s ../../.agents/skills/<name> .claude/skills/<name>`, run from the repository root. The `@`-imports below take literal paths and do not expand globs; a skill is listed here only when it should be inlined into every session.
+
 @~/.agents/skills/**/SKILL.md
 @~/.agents/skills/errbit/SKILL.md
 @~/.agents/skills/trello/SKILL.md
