@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "modern-c check output",
+  "type": "object",
+  "properties": {
+    "success": { "type": "boolean", "description": "True when there are no findings" },
+    "root": { "type": "string" },
+    "level": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "files_scanned": { "type": "integer", "minimum": 0 },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule": { "type": "string" },
+          "level": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "file": { "type": ["string", "null"], "description": "Path relative to root, or null for project-wide findings" },
+          "line": { "type": ["integer", "null"] },
+          "message": { "type": "string" }
+        },
+        "required": ["rule", "level", "file", "line", "message"],
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Finding count per rule",
+      "additionalProperties": { "type": "integer" }
+    }
+  },
+  "required": ["success", "root", "level", "files_scanned", "findings", "summary"],
+  "additionalProperties": false
+}

@@ -7,6 +7,8 @@ description: Find and evaluate existing C libraries before implementing function
 
 C has no standard package registry and a small standard library, so the temptation is to reimplement. Do not. Most capabilities have a mature, maintained C library. Reimplementing an S3 client, an HTTP stack or a TLS layer from scratch is a bug farm and weeks of work that a dependency replaces in an afternoon.
 
+The opposite failure is pulling in libraries on their own terms: each with its own build system, install step, macros, globals, allocation model and error scheme. That is C's legacy mess and the project does not inherit it. Every dependency enters under the `modern-c` contract: vendored source, pinned, built by the project, confined behind one wrapper. The library is a detail of one module, never a shape the whole program takes.
+
 ## Rule
 
 Before writing more than a trivial amount of code for a capability that is not specific to this project, search for a library. Reimplement only when the search comes up empty or every candidate fails evaluation, and say so explicitly to the user with what was checked.
@@ -32,7 +34,7 @@ Triggers that must start a search:
 4. **Search.** Use web search with terms like `<capability> C library`, `<capability> C99`, `<capability> single header`. Check GitHub topics `c`, `c99`, `single-header`. Check package indexes that list C libraries: vcpkg, Conan, Homebrew, Debian `apt`, the Awesome C list on GitHub.
 5. **Evaluate each candidate** against the checklist below. Fetch the README and recent commit history rather than trusting memory; libraries get abandoned or renamed.
 6. **Report before writing code.** Give the user the library decision in the shape below while switching is still free. A trade-off delivered after the hand-written version exists is not a decision, it is a request to rewrite. If the choice is between two reasonable libraries, state the recommendation and proceed.
-7. **Integrate** following the project's existing dependency convention. If there is none, prefer in this order: single-header file vendored into the tree, git submodule under `third_party/` or `vendor/`, CMake `FetchContent`, system package via `pkg-config`.
+7. **Integrate** under the `modern-c` dependency rules: copy the pinned source into `deps/<name>/`, record it in `deps.lock`, build it with the project's build system, and put it behind one wrapper module in `src/`. System packages, `pkg-config`, `find_package` and `FetchContent` are not integration options. If the project has an older convention, follow it and tell the user it diverges from the contract.
 
 ## Library Decision Report
 
@@ -45,7 +47,7 @@ One paragraph per capability, before implementation starts:
 
 Example, written before the store module existed:
 
-> S3: `aws-c-s3` is the official client and gives the full credential chain, parallel multipart and checksums. It needs eight companion libraries plus s2n on Linux, Debian and Ubuntu do not package them, so Linux builds would statically link the family, and its async event-loop API shapes the whole store module. The alternative is libcurl with hand-written SigV4, roughly 900 lines, testable against MinIO on both platforms. Recommendation: libcurl now, confined to `src/s3.c`, so a later swap touches one file. Say now if you want the official client instead.
+> S3: `aws-c-s3` is the official client and gives the full credential chain, parallel multipart and checksums. It is nine CMake repositories vendored into `deps/`, which is a large tree but builds with the project, and its async event-loop API shapes the store wrapper internally. The alternative is libcurl, also vendored, with hand-written SigV4, roughly 900 lines, testable against MinIO on both platforms, and without instance-metadata or SSO credentials. Both are confined to `src/s3.c`. Recommendation: `aws-c-s3` if the daemon will ever run on AWS infrastructure, libcurl otherwise. Say which now.
 
 ## Evaluation Checklist
 
@@ -54,8 +56,10 @@ Example, written before the store module existed:
 * **Language**: pure C, or C with an optional C++ build. A C++ library with a C wrapper is acceptable when nothing else exists.
 * **Portability**: builds on the project's target platforms with the project's compiler and C standard.
 * **Dependencies**: how many, and whether they are already in the project. Transitive dependency trees matter for build time and audit surface.
-* **Build**: CMake, Meson, Makefile or single header. Avoid libraries that need autotools on Windows unless unavoidable.
-* **API shape**: explicit allocators or custom allocator hooks, length-based or at least size-aware string APIs, no hidden global state, no hidden threads. These fit the project's C style; see the `c-best-practices` skill.
+* **Build**: CMake or plain sources the project can compile directly. Autotools-only or Makefile-only libraries fail unless their sources are simple enough to list in the project's build by hand.
+* **Allocation**: allocator hooks that can route into the project's arenas, or few enough allocations that the wrapper can own them all. A library that allocates freely and hands out pointers the caller must free is a poor fit.
+* **API shape**: length-based or at least size-aware string APIs, no hidden global state, no hidden threads, no macro DSL required to use it. These fit the project's C style; see `c-best-practices`.
+* **Containment**: can the library be fully hidden behind one wrapper module, so its headers, types, error codes and macros never appear elsewhere? If not, say so in the decision report.
 * **Scale**: handles the data sizes the project will see. Check for streaming APIs when inputs can be large.
 
 ## Catalog
@@ -66,7 +70,7 @@ Verified, widely used libraries by category. Prefer these over unknown alternati
 
 | Need | Library | Notes |
 |------|---------|-------|
-| AWS S3 | `awslabs/aws-c-s3` | Official. Multipart, SigV4, parallel transfers. Depends on `aws-c-common`, `aws-c-io`, `aws-c-http`, `aws-c-auth`, `aws-c-cal`, `aws-c-sdkutils`, `aws-checksums`, and `s2n-tls` on Linux. Build via CMake with `aws-crt` or each repo as a submodule. |
+| AWS S3 | `awslabs/aws-c-s3` | Official. Multipart, SigV4, parallel transfers. Depends on `aws-c-common`, `aws-c-io`, `aws-c-http`, `aws-c-auth`, `aws-c-cal`, `aws-c-sdkutils`, `aws-checksums`, and `s2n-tls` on Linux. All CMake, all vendorable into `deps/`; the tree is large but it is source, which is the contract's preferred shape. Nothing in it is in Debian or Ubuntu, which is irrelevant when vendoring. |
 | AWS HTTP, auth, event streams | `awslabs/aws-c-http`, `aws-c-auth`, `aws-c-event-stream` | Same family. Use the family rather than hand-rolling SigV4. |
 | AWS all-in-one | `awslabs/aws-crt-cpp` is C++ | For pure C use the individual `aws-c-*` repos. |
 | Azure | `Azure/azure-sdk-for-c` | Official, embedded-oriented. |
@@ -231,6 +235,19 @@ When a port is done, report in this order so the reader can judge it without ope
 6. **Not done**: anything skipped, unported or unverified, stated plainly.
 
 Keep it to one screen. A reader should finish it knowing what to trust, what to decide, and what remains.
+
+## Wrapping a Dependency
+
+The wrapper module is where the library stops and the project begins.
+
+* One `src/<capability>.c` and `.h` per dependency, named for the capability, not the library: `s3.c`, not `curl_s3.c`.
+* The header uses only project types: `String`, `Arena *`, `Error`, opaque handles. No library header is included from it.
+* Library error codes map to the project `Error` enum inside the wrapper.
+* Library allocations are routed through its allocator hooks into an arena, or owned and freed within the wrapper so nothing escapes.
+* Library globals and init calls, such as `curl_global_init`, happen once inside the wrapper's context create and destroy.
+* The wrapper is tested through its own header, against a real instance where one exists, such as a local MinIO for S3.
+
+Done right, the decision report's "confined to one file" claim is literally true.
 
 ## When Reimplementing Is Right
 

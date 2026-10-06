@@ -1,0 +1,40 @@
+name: modern-c
+version: 0.1.0
+description: Check a C project against the modern-c contract and compute deps.lock content hashes
+
+entrypoint:
+  type: ruby
+  command: ruby modern-c
+
+capabilities:
+  - read
+  - lint
+
+input_schema: schema/input.schema.json
+output_schema: schema/output.schema.json
+
+permissions:
+  filesystem:
+    read:
+      - <project path given on the command line>
+  network: false
+  processes:
+    spawn: false
+
+timeouts:
+  execution_seconds: 60
+
+retries:
+  max_attempts: 1
+
+observability:
+  structured_logs: false
+  tracing: false
+
+safety:
+  destructive: false
+  requires_confirmation: false
+
+dependencies:
+  runtime:
+    - ruby >= 3.0 (standard library only)

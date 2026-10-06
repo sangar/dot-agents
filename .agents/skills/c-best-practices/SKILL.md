@@ -24,7 +24,7 @@ This is an **inferred style guide**, based on Vjekoslav's publicly documented Fi
 
 The 29 detailed rules with rationale and code examples are in [reference.md](reference.md). Read it when designing a subsystem, allocator, string or container API, or when reviewing C code against this style.
 
-Before implementing a non-trivial capability such as HTTP, S3, TLS, JSON, YML or compression, use the `c-libraries` skill to find an existing library. This style guide covers how to write the code you do write, not a reason to write everything yourself.
+This guide covers how to write code inside a module. Project structure, build, dependencies and error model are the `modern-c` contract. Before implementing a non-trivial capability such as HTTP, S3, TLS, JSON, YML or compression, use the `c-libraries` skill to find an existing library. This style guide covers how to write the code you do write, not a reason to write everything yourself.
 
 ---
 

@@ -1,0 +1,655 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'digest'
+require 'json'
+require 'optparse'
+
+module ModernC
+  VERSION = '0.1.0'
+
+  RULE_LEVELS = {
+    'stdc-version' => 1,
+    'platform-ifdef' => 1,
+    'platform-header' => 1,
+    'function-macro' => 1,
+    'global-mutable' => 1,
+    'errno' => 1,
+    'malloc' => 1,
+    'nodiscard' => 1,
+    'warnings' => 1,
+    'sanitizers' => 1,
+    'build-system' => 2,
+    'layout' => 2,
+    'deps-lock' => 2,
+    'dep-leak' => 2,
+    'readme-profile' => 2,
+    'clang-tidy' => 3,
+    'fuzz' => 3
+  }.freeze
+
+  PLATFORM_MACROS = %w[
+    _WIN32 _WIN64 __linux__ __APPLE__ __MACH__ __unix__ __unix __FreeBSD__ __OpenBSD__
+    __NetBSD__ __ANDROID__ __EMSCRIPTEN__ __CYGWIN__ __MINGW32__ __MINGW64__
+  ].freeze
+  PLATFORM_HEADER = %r{\A(windows\.h|winsock2\.h|ws2tcpip\.h|io\.h|direct\.h|process\.h|unistd\.h|dirent\.h|fcntl\.h|pthread\.h|poll\.h|netdb\.h|sys/.+|netinet/.+|arpa/.+|mach/.+|CoreFoundation/.+|CoreServices/.+)\z}
+  ALLOWED_FUNCTION_MACROS = %w[countof unused COUNTOF UNUSED].freeze
+  ALLOCATOR_FILE = /arena|pool|alloc/
+  SKIPPED_DIRS = %w[.git deps build out node_modules].freeze
+  SKIPPED_DIR_PATTERN = /\Acmake-build-/
+  APPROVED_BUILD_FILES = ['CMakeLists.txt', 'build.c', 'tools/build.c'].freeze
+  UNSUPPORTED_BUILD_FILES = %w[
+    Makefile GNUmakefile makefile meson.build configure.ac configure.in configure
+    premake5.lua xmake.lua SConstruct BUILD BUILD.bazel WORKSPACE
+  ].freeze
+  VENDOR_DIRS = %w[vendor third_party thirdparty external 3rdparty].freeze
+  HASH_PATTERN = /\Asha256:\h{64}\z/
+  PLATFORM_DIR = 'src/platform/'
+  TOOLS_DIR = 'tools/'
+
+  Finding = Struct.new(:rule, :file, :line, :message, keyword_init: true) do
+    def level
+      RULE_LEVELS.fetch(rule)
+    end
+
+    def to_h
+      { 'rule' => rule, 'level' => level, 'file' => file, 'line' => line, 'message' => message }
+    end
+
+    def to_s
+      location = file ? "#{file}#{line ? ":#{line}" : ''}: " : ''
+      "#{location}[#{rule}] #{message}"
+    end
+  end
+
+  class SourceFile
+    attr_reader :path, :relative, :text, :lines
+
+    def initialize(path, relative)
+      @path = path
+      @relative = relative
+      @text = File.read(path, encoding: 'UTF-8', invalid: :replace, undef: :replace)
+      @lines = @text.lines.map(&:chomp)
+    end
+
+    def code_lines
+      @code_lines ||= ModernC.strip_comments_and_strings(text).lines.map(&:chomp)
+    end
+
+    def header?
+      relative.end_with?('.h')
+    end
+
+    def platform_exempt?
+      relative.start_with?(PLATFORM_DIR, TOOLS_DIR)
+    end
+
+    def allocator?
+      File.basename(relative) =~ ALLOCATOR_FILE
+    end
+
+    def each_code_line
+      code_lines.each_with_index { |line, index| yield line, index + 1 }
+    end
+  end
+
+  def self.strip_comments_and_strings(text)
+    out = +''
+    state = :code
+    i = 0
+    while i < text.length
+      c = text[i]
+      nxt = text[i + 1]
+      case state
+      when :code
+        if c == '/' && nxt == '*'
+          state = :block
+          out << '  '
+          i += 2
+          next
+        elsif c == '/' && nxt == '/'
+          state = :line
+          out << '  '
+          i += 2
+          next
+        elsif c == '"'
+          state = :string
+        elsif c == "'"
+          state = :char
+        end
+        out << c
+      when :block
+        if c == '*' && nxt == '/'
+          state = :code
+          out << '  '
+          i += 2
+          next
+        end
+        out << (c == "\n" ? c : ' ')
+      when :line
+        state = :code if c == "\n"
+        out << (c == "\n" ? c : ' ')
+      when :string, :char
+        quote = state == :string ? '"' : "'"
+        if c == '\\'
+          out << '  '
+          i += 2
+          next
+        elsif c == quote || c == "\n"
+          state = :code
+          out << c
+        else
+          out << ' '
+        end
+      end
+      i += 1
+    end
+    out
+  end
+
+  def self.directory_hash(dir)
+    digest = Digest::SHA256.new
+    Dir.glob('**/*', File::FNM_DOTMATCH, base: dir).sort.each do |rel|
+      next if rel == '.git' || rel.start_with?('.git/') || File.basename(rel) == '.DS_Store'
+
+      path = File.join(dir, rel)
+      next unless File.file?(path)
+
+      digest << rel << "\0" << Digest::SHA256.file(path).hexdigest << "\n"
+    end
+    "sha256:#{digest.hexdigest}"
+  end
+
+  class Project
+    attr_reader :root
+
+    def initialize(root)
+      @root = File.expand_path(root)
+    end
+
+    def exists?(rel)
+      File.exist?(File.join(root, rel))
+    end
+
+    def directory?(rel)
+      File.directory?(File.join(root, rel))
+    end
+
+    def read(rel)
+      path = File.join(root, rel)
+      File.file?(path) ? File.read(path) : ''
+    end
+
+    def sources
+      @sources ||= Dir.glob(File.join(root, '**', '*.{c,h}'))
+                      .map { |path| [path, path.delete_prefix("#{root}/")] }
+                      .reject { |_, rel| skipped?(rel) }
+                      .sort_by { |_, rel| rel }
+                      .map { |path, rel| SourceFile.new(path, rel) }
+    end
+
+    def source(relative)
+      sources.find { |source| source.relative == relative }
+    end
+
+    def dep_names
+      return [] unless directory?('deps')
+
+      Dir.children(File.join(root, 'deps')).select { |name| directory?("deps/#{name}") }.sort
+    end
+
+    def dep_header_basenames(name)
+      Dir.glob(File.join(root, 'deps', name, '**', '*.h')).map { |path| File.basename(path) }.uniq
+    end
+
+    def build_files
+      APPROVED_BUILD_FILES.select { |rel| exists?(rel) }
+    end
+
+    def build_text
+      build_files.map { |rel| read(rel) }.join("\n")
+    end
+
+    def readme
+      read('README.md')
+    end
+
+    def declared_level
+      match = readme.match(/Modern C Level\s*([123])/i) || readme.match(/\bLevel\s*([123])\b/)
+      match && match[1].to_i
+    end
+
+    private
+
+    def skipped?(rel)
+      rel.split('/')[0..-2].any? { |dir| SKIPPED_DIRS.include?(dir) || dir =~ SKIPPED_DIR_PATTERN }
+    end
+  end
+
+  class Checker
+    def initialize(project, error_type: 'Error')
+      @project = project
+      @error_type = error_type
+    end
+
+    def run(level)
+      RULE_LEVELS.select { |_, rule_level| rule_level <= level }
+                 .keys
+                 .flat_map { |rule| send("check_#{rule.tr('-', '_')}") }
+                 .reject { |finding| allowed?(finding) }
+    end
+
+    private
+
+    attr_reader :project, :error_type
+
+    def finding(rule, message, file: nil, line: nil)
+      Finding.new(rule: rule, file: file, line: line, message: message)
+    end
+
+    def allowed?(finding)
+      return false unless finding.file && finding.line
+
+      source = project.source(finding.file)
+      return false unless source
+      return true if allow_list(source.text, 'allow-file').include?(finding.rule)
+
+      line = source.lines[finding.line - 1]
+      line ? allow_list(line, 'allow').include?(finding.rule) : false
+    end
+
+    def allow_list(text, keyword)
+      match = text.match(/modern-c:\s*#{keyword}\s+([\w,\s-]+)/)
+      match ? match[1].split(/[,\s]+/) : []
+    end
+
+    def each_line(sources = project.sources)
+      sources.each do |source|
+        source.each_code_line { |line, number| yield source, line, number }
+      end
+    end
+
+    def line_findings(rule, pattern, sources: project.sources)
+      findings = []
+      each_line(sources) do |source, line, number|
+        match = line.match(pattern)
+        findings << finding(rule, yield(match), file: source.relative, line: number) if match
+      end
+      findings
+    end
+
+    def portable_sources
+      project.sources.reject(&:platform_exempt?)
+    end
+
+    def check_stdc_version
+      line_findings('stdc-version', /__STDC_VERSION__/) do |_|
+        'the C standard is fixed by the project; remove the __STDC_VERSION__ check'
+      end
+    end
+
+    def check_platform_ifdef
+      pattern = /\A\s*#\s*(?:if|ifdef|ifndef|elif)\b.*\b(#{PLATFORM_MACROS.join('|')})\b/
+      line_findings('platform-ifdef', pattern, sources: portable_sources) do |match|
+        "platform condition on #{match[1]} outside #{PLATFORM_DIR}"
+      end
+    end
+
+    def check_platform_header
+      pattern = /\A\s*#\s*include\s*<([^>]+)>/
+      findings = []
+      each_line(portable_sources) do |source, line, number|
+        match = line.match(pattern)
+        next unless match && match[1] =~ PLATFORM_HEADER
+
+        findings << finding('platform-header', "OS header <#{match[1]}> included outside #{PLATFORM_DIR}",
+                            file: source.relative, line: number)
+      end
+      findings
+    end
+
+    def check_function_macro
+      pattern = /\A\s*#\s*define\s+([A-Za-z_]\w*)\(/
+      findings = []
+      each_line do |source, line, number|
+        match = line.match(pattern)
+        next unless match && !ALLOWED_FUNCTION_MACROS.include?(match[1])
+
+        findings << finding('function-macro', "function-like macro #{match[1]}; use a static inline function",
+                            file: source.relative, line: number)
+      end
+      findings
+    end
+
+    def check_global_mutable
+      findings = []
+      project.sources.each do |source|
+        depth = 0
+        source.each_code_line do |line, number|
+          name = depth.zero? ? mutable_global_name(line) : nil
+          findings << finding('global-mutable', "file-scope mutable variable #{name}; pass state through a context",
+                              file: source.relative, line: number) if name
+          depth += line.count('{') - line.count('}')
+          depth = 0 if depth.negative?
+        end
+      end
+      findings
+    end
+
+    def mutable_global_name(line)
+      statement = line.gsub(/\[\[.*?\]\]/, '').strip
+      return nil if statement.empty? || statement.start_with?('#', '}')
+      return nil if statement =~ /\A(typedef|extern|return)\b/
+      return nil if statement =~ /\b(struct|enum|union)\b[^;=]*\{/
+
+      declarator = statement.split(/[=;]/, 2).first
+      return nil if declarator.nil? || declarator.include?('(') || statement !~ /[=;]/
+
+      declarator = declarator.sub(/(\s*\[[^\]]*\])+\s*\z/, '').strip
+      match = declarator.match(/\A(.+?)\s*\b([A-Za-z_]\w*)\z/m)
+      return nil unless match
+
+      specifiers = match[1].strip
+      return nil if specifiers.empty? || specifiers =~ /\A(struct|enum|union)\z/
+      return nil if const_object?(specifiers)
+
+      match[2]
+    end
+
+    def const_object?(specifiers)
+      if specifiers.include?('*')
+        specifiers.split('*').last.to_s =~ /\bconst\b/
+      else
+        specifiers =~ /\bconst\b/
+      end
+    end
+
+    def check_errno
+      line_findings('errno', /\berrno\b/, sources: portable_sources) do |_|
+        "errno used outside #{PLATFORM_DIR}; map OS failures to the project Error enum"
+      end
+    end
+
+    def check_malloc
+      sources = portable_sources.reject(&:allocator?)
+      line_findings('malloc', /\b(malloc|calloc|realloc|free|strdup)\s*\(/, sources: sources) do |match|
+        "#{match[1]} outside an allocator or dependency wrapper; allocate from an arena or pool"
+      end
+    end
+
+    def check_nodiscard
+      pattern = /\A\s*(\[\[nodiscard\]\]\s*)?((?:static\s+|inline\s+)*)#{Regexp.escape(error_type)}\s+([A-Za-z_]\w*)\s*\(/
+      findings = []
+      project.sources.each do |source|
+        previous = ''
+        source.each_code_line do |line, number|
+          match = line.match(pattern)
+          applies = match && (source.header? || match[2].include?('static'))
+          marked = match && (match[1] || previous =~ /\[\[nodiscard\]\]|warn_unused_result/)
+          if applies && !marked
+            findings << finding('nodiscard', "#{match[3]} returns #{error_type} without [[nodiscard]]",
+                                file: source.relative, line: number)
+          end
+          previous = line
+        end
+      end
+      findings
+    end
+
+    def check_warnings
+      return [] if project.build_files.empty?
+
+      text = project.build_text
+      required = { '-Wall' => /-Wall\b/, '-Wextra' => /-Wextra\b/,
+                   '-Werror' => /-Werror\b|COMPILE_WARNING_AS_ERROR/ }
+      required.reject { |_, pattern| text =~ pattern }.map do |flag, _|
+        finding('warnings', "build does not enable #{flag}", file: project.build_files.first)
+      end
+    end
+
+    def check_sanitizers
+      return [] if project.build_files.empty?
+
+      text = project.build_text
+      missing = %w[address undefined].reject { |name| text =~ /fsanitize=[\w,]*#{name}/ }
+      return [] if missing.empty?
+
+      [finding('sanitizers', "build has no -fsanitize=#{missing.join(',')} configuration",
+               file: project.build_files.first)]
+    end
+
+    def check_build_system
+      present = UNSUPPORTED_BUILD_FILES.select { |rel| project.exists?(rel) }.uniq(&:downcase)
+      findings = present.map do |rel|
+        finding('build-system', "unsupported build system #{rel}; use CMake or build.c", file: rel)
+      end
+      approved = project.build_files
+      findings << finding('build-system', 'no build system; add CMakeLists.txt or build.c') if approved.empty?
+      if approved.size > 1
+        findings << finding('build-system', "more than one build system: #{approved.join(', ')}")
+      end
+      findings
+    end
+
+    def check_layout
+      findings = []
+      %w[src tests].each do |dir|
+        findings << finding('layout', "missing #{dir}/ directory") unless project.directory?(dir)
+      end
+      findings << finding('layout', 'missing README.md') unless project.exists?('README.md')
+      VENDOR_DIRS.select { |dir| project.directory?(dir) }.each do |dir|
+        findings << finding('layout', "vendored dependencies belong in deps/, not #{dir}/", file: dir)
+      end
+      findings
+    end
+
+    def check_deps_lock
+      names = project.dep_names
+      return [] if names.empty? && !project.exists?('deps.lock')
+      return [finding('deps-lock', 'deps/ exists without deps.lock')] unless project.exists?('deps.lock')
+
+      findings = []
+      locked = {}
+      project.read('deps.lock').lines.each_with_index do |raw, index|
+        line = raw.strip
+        next if line.empty? || line.start_with?('#')
+
+        fields = line.split
+        if fields.size != 4 || fields[3] !~ HASH_PATTERN
+          findings << finding('deps-lock', 'malformed entry; expected: name version url sha256:<hex>',
+                              file: 'deps.lock', line: index + 1)
+          next
+        end
+        locked[fields[0]] = { hash: fields[3], line: index + 1 }
+      end
+
+      names.each do |name|
+        entry = locked[name]
+        unless entry
+          findings << finding('deps-lock', "deps/#{name} has no entry in deps.lock", file: "deps/#{name}")
+          next
+        end
+        actual = ModernC.directory_hash(File.join(project.root, 'deps', name))
+        next if actual == entry[:hash]
+
+        findings << finding('deps-lock', "deps/#{name} content hash is #{actual}, lock says #{entry[:hash]}",
+                            file: 'deps.lock', line: entry[:line])
+      end
+      (locked.keys - names).each do |name|
+        findings << finding('deps-lock', "deps.lock lists #{name} but deps/#{name} does not exist",
+                            file: 'deps.lock', line: locked[name][:line])
+      end
+      findings
+    end
+
+    def check_dep_leak
+      project_headers = project.sources.select(&:header?).map { |source| File.basename(source.relative) }
+      header_owner = {}
+      project.dep_names.each do |name|
+        project.dep_header_basenames(name).each do |basename|
+          header_owner[basename] = name unless project_headers.include?(basename)
+        end
+      end
+      return [] if header_owner.empty?
+
+      includes = Hash.new { |hash, key| hash[key] = [] }
+      project.sources.each do |source|
+        source.lines.each_with_index do |line, index|
+          match = line.match(/\A\s*#\s*include\s*["<]([^">]+)[">]/)
+          next unless match
+
+          owner = header_owner[File.basename(match[1])]
+          includes[owner] << [source, index + 1] if owner
+        end
+      end
+
+      findings = []
+      includes.each do |name, sites|
+        files = sites.map { |source, _| source.relative }.uniq
+        sites.each do |source, number|
+          if source.header?
+            findings << finding('dep-leak', "deps/#{name} included from a project header; headers use project types only",
+                                file: source.relative, line: number)
+          end
+          next if files.size == 1
+
+          findings << finding('dep-leak', "deps/#{name} included from #{files.size} files; confine it to one wrapper module",
+                              file: source.relative, line: number)
+        end
+      end
+      findings
+    end
+
+    def check_readme_profile
+      return [] unless project.exists?('README.md')
+
+      findings = []
+      unless project.readme =~ /\bC(17|23)\b/
+        findings << finding('readme-profile', 'README does not declare the C standard (C17 or C23)', file: 'README.md')
+      end
+      unless project.declared_level
+        findings << finding('readme-profile', 'README does not declare the Modern C level', file: 'README.md')
+      end
+      findings
+    end
+
+    def check_clang_tidy
+      project.exists?('.clang-tidy') ? [] : [finding('clang-tidy', 'missing .clang-tidy configuration')]
+    end
+
+    def check_fuzz
+      project.directory?('tests/fuzz') ? [] : [finding('fuzz', 'missing tests/fuzz/ with fuzz targets and corpus')]
+    end
+  end
+
+  class CLI
+    USAGE = <<~TEXT
+      Usage: modern-c <command> [options]
+
+      Commands:
+        check [path]   Check a C project against the modern-c contract (default path: .)
+        hash <dir>     Print the deps.lock content hash of a directory
+
+      Options:
+        --level N          Check rules up to level N (1, 2 or 3); default is the README's declared level, else 2
+        --format FORMAT    text or json; default is text
+        --error-type NAME  Name of the project error enum; default is Error
+        --version
+        --help
+
+      Exit codes: 0 no findings, 1 findings, 2 usage or I/O error.
+
+      Suppress a finding with a comment on its line:   // modern-c: allow <rule>
+      Suppress a rule for a whole file:                // modern-c: allow-file <rule>
+    TEXT
+
+    def self.run(argv, stdin: $stdin, stdout: $stdout, stderr: $stderr)
+      new(stdout, stderr).run(argv, stdin)
+    end
+
+    def initialize(stdout, stderr)
+      @stdout = stdout
+      @stderr = stderr
+    end
+
+    def run(argv, stdin)
+      options = { format: 'text', error_type: 'Error' }
+      argv = json_argv(stdin, options) if argv.empty? && !stdin.tty?
+      parser = OptionParser.new do |opts|
+        opts.on('--level N', Integer) { |n| options[:level] = n }
+        opts.on('--format FORMAT', %w[text json]) { |f| options[:format] = f }
+        opts.on('--error-type NAME') { |n| options[:error_type] = n }
+        opts.on('--version') { @stdout.puts(VERSION); return 0 }
+        opts.on('--help') { @stdout.puts(USAGE); return 0 }
+      end
+      rest = parser.parse(argv)
+      case rest.first
+      when 'check' then check(rest[1] || '.', options)
+      when 'hash' then hash(rest[1])
+      else usage_error(rest.first ? "unknown command #{rest.first}" : 'missing command')
+      end
+    rescue OptionParser::ParseError => e
+      usage_error(e.message)
+    end
+
+    private
+
+    def json_argv(stdin, options)
+      input = JSON.parse(stdin.read)
+      argv = [input.fetch('command', 'check')]
+      argv << input['path'] if input['path']
+      argv += ['--level', input['level'].to_s] if input['level']
+      options[:format] = 'json'
+      options[:error_type] = input['error_type'] if input['error_type']
+      argv
+    rescue JSON::ParserError => e
+      raise OptionParser::ParseError, "invalid JSON on stdin: #{e.message}"
+    end
+
+    def check(path, options)
+      return usage_error("#{path} is not a directory") unless File.directory?(path)
+
+      project = Project.new(path)
+      level = options[:level] || project.declared_level || 2
+      return usage_error('level must be 1, 2 or 3') unless (1..3).cover?(level)
+
+      findings = Checker.new(project, error_type: options[:error_type]).run(level)
+                        .sort_by { |f| [f.file.to_s, f.line.to_i, f.rule] }
+      options[:format] == 'json' ? print_json(project, level, findings) : print_text(project, level, findings)
+      findings.empty? ? 0 : 1
+    end
+
+    def print_text(project, level, findings)
+      findings.each { |f| @stdout.puts(f) }
+      noun = findings.size == 1 ? 'finding' : 'findings'
+      @stdout.puts("#{findings.size} #{noun} in #{project.sources.size} source files (level #{level})")
+    end
+
+    def print_json(project, level, findings)
+      summary = findings.group_by(&:rule).transform_values(&:size)
+      @stdout.puts(JSON.pretty_generate(
+                     'success' => findings.empty?,
+                     'root' => project.root,
+                     'level' => level,
+                     'files_scanned' => project.sources.size,
+                     'findings' => findings.map(&:to_h),
+                     'summary' => summary
+                   ))
+    end
+
+    def hash(dir)
+      return usage_error('hash needs a directory') unless dir && File.directory?(dir)
+
+      @stdout.puts(ModernC.directory_hash(dir))
+      0
+    end
+
+    def usage_error(message)
+      @stderr.puts("modern-c: #{message}")
+      @stderr.puts(USAGE)
+      2
+    end
+  end
+end
+
+exit ModernC::CLI.run(ARGV) if $PROGRAM_NAME == __FILE__

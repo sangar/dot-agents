@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "modern-c input",
+  "description": "Accepted as JSON on stdin when the tool is run without arguments. The same options exist as command-line flags.",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": ["check"],
+      "default": "check"
+    },
+    "path": {
+      "type": "string",
+      "description": "Project root to check",
+      "default": "."
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "description": "Highest rule level to run. Defaults to the level declared in README.md, else 2."
+    },
+    "error_type": {
+      "type": "string",
+      "default": "Error",
+      "description": "Name of the project's error enum, used by the nodiscard rule"
+    }
+  },
+  "additionalProperties": false
+}
