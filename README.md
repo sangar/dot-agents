@@ -25,6 +25,7 @@ This is a personal agent configuration repository that provides:
 │   ├── skills/                # Agent skills (domain capabilities)
 │   │   ├── browser-automation/
 │   │   ├── c-best-practices/
+│   │   ├── c-libraries/
 │   │   ├── create-agent/
 │   │   ├── create-rule/
 │   │   ├── create-skill/
@@ -54,6 +55,7 @@ This is a personal agent configuration repository that provides:
 |-------|-------------|
 | `browser-automation` | Reliable browser automation using OpenCode Browser primitives |
 | `c-best-practices` | Performance-oriented C style: arenas, pools, length-based strings, explicit ownership |
+| `c-libraries` | Find and evaluate existing C libraries before reimplementing, with a Go-to-C package map |
 | `create-agent` | Scaffold production-grade subagent configurations |
 | `create-rule` | Create persistent AI guidance rules |
 | `create-skill` | Author new agent skills |
