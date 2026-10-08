@@ -175,6 +175,12 @@ module ModernC
       File.directory?(File.join(root, rel))
     end
 
+    # Matches the name case-sensitively, so a build/ directory on macOS is not taken for a Bazel BUILD file.
+    def file_named?(rel)
+      path = File.join(root, rel)
+      File.file?(path) && Dir.children(File.dirname(path)).include?(File.basename(path))
+    end
+
     def read(rel)
       path = File.join(root, rel)
       File.file?(path) ? File.read(path) : ''
@@ -203,7 +209,7 @@ module ModernC
     end
 
     def build_files
-      APPROVED_BUILD_FILES.select { |rel| exists?(rel) }
+      APPROVED_BUILD_FILES.select { |rel| file_named?(rel) }
     end
 
     def build_text
@@ -419,7 +425,7 @@ module ModernC
     end
 
     def check_build_system
-      present = UNSUPPORTED_BUILD_FILES.select { |rel| project.exists?(rel) }.uniq(&:downcase)
+      present = UNSUPPORTED_BUILD_FILES.select { |rel| project.file_named?(rel) }
       findings = present.map do |rel|
         finding('build-system', "unsupported build system #{rel}; use CMake or build.c", file: rel)
       end

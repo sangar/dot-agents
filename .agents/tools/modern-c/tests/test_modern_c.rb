@@ -83,6 +83,15 @@ class ModernCTest < Minitest::Test
     end
   end
 
+  def test_build_output_directory_is_not_a_bazel_build_file
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, 'CMakeLists.txt'), '')
+      FileUtils.mkdir_p(File.join(dir, 'build'))
+      result = run_check(dir, '--level', '2')
+      assert_empty result['findings'].select { |f| f['rule'] == 'build-system' }
+    end
+  end
+
   def test_hash_is_stable_and_matches_lock_entry
     dir = File.join(FIXTURES, 'clean', 'deps', 'yyjson')
     first, = Open3.capture2('ruby', TOOL, 'hash', dir)
