@@ -80,12 +80,14 @@ Already in every project as `deps/libmc`. Nothing here needs a search or a wrapp
 | Durations, RFC 3339, byte sizes, aligned tables | `mc/text/fmt.h`, `mc/text/table.h` |
 | String-keyed hash map, hashing, stable sort | `mc/container/strmap.h`, `mc/container/hash.h`, `mc/container/sort.h` |
 | SHA-256, HMAC, AWS SigV4 | `mc/crypto/sha256.h`, `mc/crypto/sigv4.h` |
-| JSON parse and encode | `mc/encoding/json.h` |
+| JSON parse and encode, YAML parse | `mc/encoding/json.h`, `mc/encoding/yaml.h` |
 | Structured logging | `mc/log/log.h` |
 | Threads, thread pool, queue, cancellation | `mc/platform/platform.h`, `mc/concurrency/*.h` |
 | Files, directories, processes, environment, signals, sockets, clock | `mc/platform/platform.h` |
+| Recursive file watching, debouncing | `mc/platform/watch.h`, `mc/concurrency/debounce.h` |
+| launchd and systemd login services | `mc/platform/service.h` |
 
-Its roadmap lists file watching, service registration, YAML and an HTTP client. A need on the roadmap is a PR to libmc.
+libmc has no HTTP client and will not get one, since it would have to carry TLS. A project that needs HTTP wraps libcurl or a vendored TLS library in one module of its own.
 
 ### Cloud and vendor SDKs
 

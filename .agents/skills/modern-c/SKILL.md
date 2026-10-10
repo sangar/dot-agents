@@ -160,9 +160,9 @@ Borrowed from Zig: the repository contains everything needed to build.
 
 ## 11. Shared Code Lives in libmc
 
-[libmc](https://github.com/sangar/libmc) is the foundation library for every project under this contract: arenas, `String`, `Error`, containers, text, JSON, logging, concurrency and the platform layer. It is itself a Modern C Level 2 project with no dependencies beyond libc and pthreads.
+[libmc](https://github.com/sangar/libmc) is the foundation library for every project under this contract: arenas, `String`, `Error`, containers, text, JSON and YAML, logging, concurrency and the platform layer. It is itself a Modern C Level 2 project that needs nothing installed beyond libc, libm and pthreads; its one vendored library, cyaml, sits in its own `deps/`.
 
-**Using it.** Vendor it as `deps/libmc/` with a `deps.lock` line like any dependency, add `deps/libmc/include` to the include path and compile `deps/libmc/src/*/*.c` with the project. Unlike every other dependency, its headers are included wherever they are needed: `mc/text/str.h` is where `String` comes from. The checker exempts it from the wrapper rule.
+**Using it.** Vendor it as `deps/libmc/` with a `deps.lock` line like any dependency, add `deps/libmc/include` to the include path and compile `deps/libmc/src/*/*.c` with the project, plus `deps/libmc/deps/cyaml/*.c` as C11 without the warning flags and with `deps/libmc/deps/cyaml` on the include path. Link `-lpthread -lm`, and `-framework CoreServices` on macOS. Unlike every other dependency, its headers are included wherever they are needed: `mc/text/str.h` is where `String` comes from. The checker exempts it from the wrapper rule.
 
 Before writing a helper, read its module table:
 
@@ -172,17 +172,19 @@ Before writing a helper, read its module table:
 | text | `str.h`, `utf8.h`, `glob.h`, `path.h`, `fmt.h`, `table.h` | views, builders, split and join, percent encoding, UTF-8, globs, lexical paths, durations, RFC 3339, byte sizes, aligned columns |
 | container | `strmap.h`, `hash.h`, `sort.h` | string-keyed hash map, FNV-1a, stable sort and top-k |
 | crypto | `sha256.h`, `sigv4.h` | SHA-256, HMAC, hex, AWS Signature V4 |
-| platform | `platform.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets |
-| concurrency | `cancel.h`, `queue.h`, `threadpool.h` | cancellation tokens, blocking queue, thread pool, parallel loops |
-| encoding | `node.h`, `json.h` | document tree, strict JSON parse and encode |
+| platform | `platform.h`, `watch.h`, `service.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets, recursive file watching, launchd and systemd login services |
+| concurrency | `cancel.h`, `debounce.h`, `queue.h`, `threadpool.h` | cancellation tokens, per-key debouncing, blocking queue, thread pool, parallel loops |
+| encoding | `node.h`, `json.h`, `yaml.h` | document tree, strict JSON parse and encode, YAML parse |
 | log | `log.h` | structured logging, text or JSON lines |
 
-**The contribution test.** If a function, type or module would be useful in any other C project, it belongs in libmc, not in `src/`. Base64, a ring buffer, YAML, an HTTP client, file watching, a CLI argument parser: all libmc. What stays in the project is code that only makes sense with the project's domain, plus wrappers for its other dependencies.
+**Bridging stays in the project.** libmc is plain C with a plain C ABI and knows nothing about who calls it. It takes and returns its own types: `String`, `Arena *`, `Error`, `Err *`, fixed-layout structs, opaque handles. A project that uses it from Swift, C++, Rust, Zig, Go or Objective-C does the translation on its own side, in one bridging module: a Swift bridging header and a `String` to `Swift.String` layer, an `extern "C"` wrapper with RAII handles in C++, cgo conversions in Go. Nothing for that goes into libmc: no `#ifdef __cplusplus` or `extern "C"` blocks in its headers, the caller adds them; no Foundation, CoreFoundation, `NSString` or `CFString`; no framework headers; no callback shapes designed for one host language; no OS-specific API outside `src/platform/`. A libmc PR that exists only to make one language's bridge easier is declined. The bridge changes instead.
+
+**The contribution test.** If a function, type or module would be useful in any other C project, it belongs in libmc, not in `src/`. Base64, a ring buffer, a CLI argument parser: all libmc. What stays in the project is code that only makes sense with the project's domain, plus wrappers for its other dependencies. An HTTP client also stays in the project, behind one module wrapping libcurl or a vendored TLS library, because libmc does not carry TLS.
 
 **Contributing.** When the project needs shared code libmc lacks, or a new `Error` code, or a platform call:
 
 1. Clone `github.com/sangar/libmc`, branch from `master`.
-2. Add `include/mc/<area>/<module>.h` with contract comments, `src/<area>/<module>.c`, and cases in `tests/test_<module>.c` registered in `tests/test.h` and `tests/main.c`. Follow the conventions in its README: arena-allocating functions take `Arena *`, fallible ones return `Error` with a trailing `Err *`, no globals, no new dependencies.
+2. Add `include/mc/<area>/<module>.h` with contract comments, `src/<area>/<module>.c`, and cases in `tests/test_<module>.c` registered in `tests/test.h` and `tests/main.c`. Follow the conventions in its README: arena-allocating functions take `Arena *`, fallible ones return `Error` with a trailing `Err *`, no globals, no new dependencies, nothing for a host language or framework.
 3. Run `./nob check`. It must pass clean under the sanitizers and the `modern-c` checker.
 4. Push the branch and open the pull request with `gh pr create`, describing what the module does and which project needed it. Follow the user's commit rules; no AI attribution.
 5. Vendor the branch commit into the project's `deps/libmc/` and pin it in `deps.lock` with the branch URL, so the project builds now. After the merge, re-pin to `master`.
@@ -255,6 +257,7 @@ It covers the mechanical rules below with file and line. Suppress a finding only
 * every fallible function returns `Error` and is `[[nodiscard]]`
 * every allocating function takes an `Arena *` or is named `create` or `clone`
 * every helper that is not specific to the project is in libmc, or in an open libmc PR the user has been told about
+* Swift, C++ or other language bridging lives in one module in the project, and no libmc change exists for its sake
 * every new dependency is in `deps/`, in `deps.lock`, behind one wrapper, and builds with the project's build system
 * `build`, `test`, `check` pass with sanitizers on every supported platform
 * the README's profile declaration is still true
