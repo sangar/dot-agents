@@ -35,6 +35,7 @@ module ModernC
   PLATFORM_HEADER = %r{\A(windows\.h|winsock2\.h|ws2tcpip\.h|io\.h|direct\.h|process\.h|unistd\.h|dirent\.h|fcntl\.h|pthread\.h|poll\.h|netdb\.h|sys/.+|netinet/.+|arpa/.+|mach/.+|CoreFoundation/.+|CoreServices/.+)\z}
   ALLOWED_FUNCTION_MACROS = %w[countof unused COUNTOF UNUSED].freeze
   ALLOCATOR_FILE = /arena|pool|alloc/
+  FOUNDATION_DEPS = %w[libmc].freeze
   SKIPPED_DIRS = %w[.git deps build out node_modules].freeze
   SKIPPED_DIR_PATTERN = /\Acmake-build-/
   APPROVED_BUILD_FILES = ['CMakeLists.txt', 'build.c', 'tools/build.c'].freeze
@@ -491,7 +492,7 @@ module ModernC
     def check_dep_leak
       project_headers = project.sources.select(&:header?).map { |source| File.basename(source.relative) }
       header_owner = {}
-      project.dep_names.each do |name|
+      (project.dep_names - FOUNDATION_DEPS).each do |name|
         project.dep_header_basenames(name).each do |basename|
           header_owner[basename] = name unless project_headers.include?(basename)
         end

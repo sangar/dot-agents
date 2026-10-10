@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include "arena.h"
 #include "error.h"
+#include "mc/text/fmt.h"
 
 typedef struct {
     char *data;

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "arena.h"
 #include "json.h"
+#include "mc/text/fmt.h"
 #include "platform/platform.h"
 
 static const int initial_capacity = 1 << 20;

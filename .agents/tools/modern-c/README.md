@@ -37,12 +37,12 @@ Without arguments and with JSON on stdin, the tool reads `{"command": "check", "
 | `build-system` | 2 | Makefile, Meson, autotools or other unsupported build files; no CMakeLists.txt or build.c; or both |
 | `layout` | 2 | Missing `src/`, `tests/` or `README.md`; a `vendor/` or `third_party/` directory |
 | `deps-lock` | 2 | `deps/` without `deps.lock`, entries without directories, directories without entries, malformed lines, content hash mismatch |
-| `dep-leak` | 2 | A header from `deps/<name>/` included from a project header, or from more than one project file |
+| `dep-leak` | 2 | A header from `deps/<name>/` included from a project header, or from more than one project file. `deps/libmc` is exempt: its headers are the project vocabulary |
 | `readme-profile` | 2 | README does not state the C standard or the Modern C level |
 | `clang-tidy` | 3 | No `.clang-tidy` file |
 | `fuzz` | 3 | No `tests/fuzz/` directory |
 
-Files under `deps/`, `build/`, `out/`, `cmake-build-*/` and `.git/` are not scanned.
+Files under `deps/`, `build/`, `out/`, `cmake-build-*/` and `.git/` are not scanned. [libmc](https://github.com/sangar/libmc) is vendored as `deps/libmc` like any dependency and listed in `deps.lock`, but it may be included from anywhere.
 
 ## Suppressing a finding
 

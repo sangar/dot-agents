@@ -29,12 +29,13 @@ Triggers that must start a search:
 ## Workflow
 
 1. **Name the capability precisely.** "Upload objects to S3 with multipart and SigV4" is searchable. "Storage" is not.
-2. **Check the catalog below first.** Most common needs are covered.
-3. **Check official SDKs.** Vendors with a C or C++ SDK usually have a C core underneath. AWS has the `aws-c-*` family. Look at the vendor's GitHub organisation before anything else.
-4. **Search.** Use web search with terms like `<capability> C library`, `<capability> C99`, `<capability> single header`. Check GitHub topics `c`, `c99`, `single-header`. Check package indexes that list C libraries: vcpkg, Conan, Homebrew, Debian `apt`, the Awesome C list on GitHub.
-5. **Evaluate each candidate** against the checklist below. Fetch the README and recent commit history rather than trusting memory; libraries get abandoned or renamed.
-6. **Report before writing code.** Give the user the library decision in the shape below while switching is still free. A trade-off delivered after the hand-written version exists is not a decision, it is a request to rewrite. If the choice is between two reasonable libraries, state the recommendation and proceed.
-7. **Integrate** under the `modern-c` dependency rules: copy the pinned source into `deps/<name>/`, record it in `deps.lock`, build it with the project's build system, and put it behind one wrapper module in `src/`. System packages, `pkg-config`, `find_package` and `FetchContent` are not integration options. If the project has an older convention, follow it and tell the user it diverges from the contract.
+2. **Check libmc first.** [libmc](https://github.com/sangar/libmc) is the foundation library every project vendors, `modern-c` rule 11. Its module table is in that skill. If it covers the capability, there is no search. If the capability is generic and small, the answer is a libmc PR, not a third-party library and not a private helper.
+3. **Check the catalog below.** Most common needs are covered.
+4. **Check official SDKs.** Vendors with a C or C++ SDK usually have a C core underneath. AWS has the `aws-c-*` family. Look at the vendor's GitHub organisation before anything else.
+5. **Search.** Use web search with terms like `<capability> C library`, `<capability> C99`, `<capability> single header`. Check GitHub topics `c`, `c99`, `single-header`. Check package indexes that list C libraries: vcpkg, Conan, Homebrew, Debian `apt`, the Awesome C list on GitHub.
+6. **Evaluate each candidate** against the checklist below. Fetch the README and recent commit history rather than trusting memory; libraries get abandoned or renamed.
+7. **Report before writing code.** Give the user the library decision in the shape below while switching is still free. A trade-off delivered after the hand-written version exists is not a decision, it is a request to rewrite. If the choice is between two reasonable libraries, state the recommendation and proceed.
+8. **Integrate** under the `modern-c` dependency rules: copy the pinned source into `deps/<name>/`, record it in `deps.lock`, build it with the project's build system, and put it behind one wrapper module in `src/`. System packages, `pkg-config`, `find_package` and `FetchContent` are not integration options. If the project has an older convention, follow it and tell the user it diverges from the contract.
 
 ## Library Decision Report
 
@@ -65,6 +66,26 @@ Example, written before the store module existed:
 ## Catalog
 
 Verified, widely used libraries by category. Prefer these over unknown alternatives.
+
+### Foundation: libmc
+
+Already in every project as `deps/libmc`. Nothing here needs a search or a wrapper.
+
+| Need | libmc header |
+|------|--------------|
+| Arena, dynamic arrays | `mc/core/arena.h` |
+| Error codes and messages | `mc/core/error.h` |
+| Length-based strings, builder, split, join, percent encoding | `mc/text/str.h` |
+| UTF-8, globs, lexical paths | `mc/text/utf8.h`, `mc/text/glob.h`, `mc/text/path.h` |
+| Durations, RFC 3339, byte sizes, aligned tables | `mc/text/fmt.h`, `mc/text/table.h` |
+| String-keyed hash map, hashing, stable sort | `mc/container/strmap.h`, `mc/container/hash.h`, `mc/container/sort.h` |
+| SHA-256, HMAC, AWS SigV4 | `mc/crypto/sha256.h`, `mc/crypto/sigv4.h` |
+| JSON parse and encode | `mc/encoding/json.h` |
+| Structured logging | `mc/log/log.h` |
+| Threads, thread pool, queue, cancellation | `mc/platform/platform.h`, `mc/concurrency/*.h` |
+| Files, directories, processes, environment, signals, sockets, clock | `mc/platform/platform.h` |
+
+Its roadmap lists file watching, service registration, YAML and an HTTP client. A need on the roadmap is a PR to libmc.
 
 ### Cloud and vendor SDKs
 
@@ -105,7 +126,8 @@ Verified, widely used libraries by category. Prefer these over unknown alternati
 
 | Need | Library | Notes |
 |------|---------|-------|
-| JSON, fast | `ibireme/yyjson` | MIT. Fastest, immutable and mutable DOM, large inputs. |
+| JSON | libmc `mc/encoding/json.h` | Default. Document tree, strict, line and column errors. |
+| JSON, fast or huge | `ibireme/yyjson` | MIT. Fastest, immutable and mutable DOM, large inputs. Only when libmc's parser is measured too slow. |
 | JSON, simple | `DaveGamble/cJSON` | MIT. Easy API. Slower, allocation-heavy. |
 | JSON, streaming | `jansson`, `json-c` | MIT. |
 | JSON, tokenizer only | `zserge/jsmn` | MIT. Single header, zero allocation. |
@@ -150,24 +172,26 @@ Verified, widely used libraries by category. Prefer these over unknown alternati
 | Unicode normalisation, case, categories | `JuliaStrings/utf8proc` | MIT. |
 | ICU | `unicode-org/icu` | Large. Only when full locale support is needed. |
 | UTF-8 validation and conversion | `simdutf` is C++; `utf8.h` by sheredom is single header C | |
-| Length-based strings | `antirez/sds`, or the project's own `String` | sds is NUL-terminated and length-prefixed. |
+| Length-based strings | libmc `String` | Views plus arena-allocated copies. Do not add `sds`. |
 
 ### Containers and allocators
 
 | Need | Library | Notes |
 |------|---------|-------|
-| Hash map, dynamic array, macros | `nothings/stb` `stb_ds.h` | Public domain. Arena-friendly if you pass realloc. |
+| String-keyed hash map, dynamic array | libmc `strmap.h`, `arena_grow` | Other key types: write it in libmc. |
+| Hash map, dynamic array, macros | `nothings/stb` `stb_ds.h` | Public domain. Only inside a wrapper; its macro API does not cross one. |
 | Hash table, intrusive | `troydhanson/uthash` | BSD. Header only. |
 | Generic containers | `attractivechaos/klib` | MIT. khash, kvec, ksort. |
 | Allocator | `microsoft/mimalloc`, `jemalloc` | Drop-in malloc replacements. |
-| Arena, pool | Usually write these; see `c-best-practices` | Small, project-specific. |
+| Arena | libmc `mc/core/arena.h` | |
+| Pool | Write it; see `c-best-practices` | Generic pools belong in libmc. |
 
 ### Concurrency
 
 | Need | Library | Notes |
 |------|---------|-------|
-| Portable threads, mutexes | C11 `<threads.h>`, or `pthreads` with `pthreads-win32` | Check compiler support for C11 threads on MSVC. |
-| Thread pool, work queue | `libuv` threadpool, `Pithikos/C-Thread-Pool` | Or write a small one; see `c-best-practices`. |
+| Portable threads, mutexes | libmc `mc/platform/platform.h` | |
+| Thread pool, work queue, cancellation | libmc `mc/concurrency/*.h` | |
 | Lock-free queues | `concurrencykit/ck`, `rigtorp` ports | |
 | Coroutines | `edubart/minicoro`, `libco` | |
 
@@ -187,8 +211,8 @@ Verified, widely used libraries by category. Prefer these over unknown alternati
 | Need | Library | Notes |
 |------|---------|-------|
 | Unit tests | `cmocka`, `ThrowTheSwitch/Unity`, `silentbicycle/greatest`, `nemequ/munit` | greatest and munit are single header. |
-| Logging | `rxi/log.c` | MIT. Tiny. |
-| CLI args | `cofyc/argparse`, `getopt` from libc | |
+| Logging | libmc `mc/log/log.h` | Text or JSON lines, like Go's slog. |
+| CLI args | Write it in libmc; `getopt` from libc meanwhile | |
 | Benchmark, timing | Write it; `clock_gettime` or `QueryPerformanceCounter` | |
 
 ## Porting From Go
@@ -199,25 +223,28 @@ When converting a Go project, map each imported package before writing anything.
 |----|---|
 | `net/http` client | `libcurl` |
 | `net/http` server | `civetweb`, `mongoose`, `libwebsockets` |
-| `encoding/json` | `yyjson`, `cJSON` |
+| `encoding/json` | libmc `json.h` |
 | `encoding/xml` | `libexpat`, `libxml2` |
 | `gopkg.in/yaml` | `libyaml` |
 | `crypto/tls` | `openssl`, `mbedtls`, `s2n-tls` |
+| `crypto/sha256`, `crypto/hmac` | libmc `sha256.h` |
 | `crypto/*`, `golang.org/x/crypto` | `libsodium`, `openssl` libcrypto |
 | `compress/gzip`, `compress/flate` | `zlib` |
 | `github.com/klauspost/compress/zstd` | `zstd` |
 | `database/sql` + `mattn/go-sqlite3` | `sqlite3` |
 | `database/sql` + `lib/pq`, `pgx` | `libpq` |
 | `github.com/go-redis/redis` | `hiredis` |
-| `github.com/aws/aws-sdk-go` s3 | `aws-c-s3` |
+| `github.com/aws/aws-sdk-go` s3 | `aws-c-s3`, or libmc `sigv4.h` with an HTTP client |
 | `regexp` | `PCRE2` |
+| `unicode/utf8`, `strings`, `path/filepath` | libmc `utf8.h`, `str.h`, `path.h`, `glob.h` |
 | `unicode`, `golang.org/x/text` | `utf8proc` |
-| `sync`, goroutines, channels | `pthreads` or `libuv`, a thread pool and explicit queues |
-| `context` cancellation | explicit cancel flag or token passed through the call chain |
-| `os/exec` | `posix_spawn`, `CreateProcess` at the platform boundary |
+| `sync`, goroutines, channels | libmc `threadpool.h`, `queue.h` |
+| `context` cancellation | libmc `cancel.h` |
+| `os/exec`, `os`, `time` | libmc `platform.h` |
+| `text/tabwriter`, `time.Duration` formatting | libmc `table.h`, `fmt.h` |
 | `testing` | `cmocka`, `greatest` |
-| `log`, `log/slog` | `rxi/log.c` |
-| `flag` | `argparse`, `getopt` |
+| `log`, `log/slog` | libmc `log.h` |
+| `flag` | libmc PR, `getopt` meanwhile |
 | `google.golang.org/protobuf` | `protobuf-c` |
 | `google.golang.org/grpc` | `grpc` C core, or redesign to HTTP + protobuf |
 
@@ -251,7 +278,7 @@ Done right, the decision report's "confined to one file" claim is literally true
 
 ## When Reimplementing Is Right
 
-* The capability is a few dozen lines: base64, hex, a simple CSV reader, a ring buffer, an arena.
+* The capability is a few dozen lines: base64, hex, a simple CSV reader, a ring buffer. Write it in libmc and open the PR, `modern-c` rule 11, unless it is specific to this project.
 * The library would pull a dependency tree far larger than the feature.
 * No candidate passes the license or platform checks, and the user has been told.
 * The project's style demands a specific memory model the library cannot accommodate, and the user agrees the cost is worth it.

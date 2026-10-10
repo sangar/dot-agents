@@ -57,7 +57,7 @@ This is a personal agent configuration repository that provides:
 |-------|-------------|
 | `browser-automation` | Reliable browser automation using OpenCode Browser primitives |
 | `c-best-practices` | Performance-oriented C style: arenas, pools, length-based strings, explicit ownership |
-| `c-libraries` | Find and evaluate existing C libraries before reimplementing, with a Go-to-C package map |
+| `c-libraries` | Find existing C libraries before reimplementing: libmc first, then a catalog and a Go-to-C package map |
 | `create-agent` | Scaffold production-grade subagent configurations |
 | `create-rule` | Create persistent AI guidance rules |
 | `create-skill` | Author new agent skills |
@@ -65,7 +65,7 @@ This is a personal agent configuration repository that provides:
 | `errbit` | Interface with Errbit error tracking |
 | `git-scripts` | Analyze git repository history and patterns |
 | `migrate-to-skills` | Convert rules and commands to skills format |
-| `modern-c` | Project contract for C: one compiler, standard and build system, vendored pinned deps, one error model, no globals |
+| `modern-c` | Project contract for C: one compiler, standard and build system, [libmc](https://github.com/sangar/libmc) for shared code, vendored pinned deps, one error model, no globals |
 | `trello` | Interface with Trello boards and cards |
 | `victoria-logs` | Query and analyze VictoriaLogs |
 
