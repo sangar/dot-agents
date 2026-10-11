@@ -4,9 +4,8 @@ description: "Firebox: creative coding, games, interactive visuals, physics."
 version: 1.0.0
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
-    tags: [creative-coding, firebox, games, interactive, physics, emoji, visualization, animation]
-    related_skills: [ascii-video, manim-video, excalidraw]
+  tags: [creative-coding, firebox, games, interactive, physics, emoji, visualization, animation]
+  related_skills: [ascii-video, manim-video, excalidraw]
 ---
 
 # Firebox🔥
