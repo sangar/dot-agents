@@ -29,7 +29,7 @@ Triggers that must start a search:
 ## Workflow
 
 1. **Name the capability precisely.** "Upload objects to S3 with multipart and SigV4" is searchable. "Storage" is not.
-2. **Check libmc first.** [libmc](https://github.com/sangar/libmc) is the foundation library every project vendors, `modern-c` rule 11. Its module table is in that skill. If it covers the capability, there is no search. If the capability is generic and small, the answer is a libmc PR, not a third-party library and not a private helper.
+2. **Check libmc first.** [libmc](https://github.com/sangar/libmc) is the foundation library every project vendors, `modern-c` rule 11. Its module table is in that skill. If it covers the capability, there is no search. If the capability is generic and small, or Apple's Foundation covers it (libmc's direction in that rule), the answer is a libmc PR, not a private helper or a project-level wrapper. A third-party library it needs is chosen with the report below and vendored into libmc.
 3. **Check the catalog below.** Most common needs are covered.
 4. **Check official SDKs.** Vendors with a C or C++ SDK usually have a C core underneath. AWS has the `aws-c-*` family. Look at the vendor's GitHub organisation before anything else.
 5. **Search.** Use web search with terms like `<capability> C library`, `<capability> C99`, `<capability> single header`. Check GitHub topics `c`, `c99`, `single-header`. Check package indexes that list C libraries: vcpkg, Conan, Homebrew, Debian `apt`, the Awesome C list on GitHub.
@@ -87,7 +87,7 @@ Already in every project as `deps/libmc`. Nothing here needs a search or a wrapp
 | Recursive file watching, debouncing | `mc/platform/watch.h`, `mc/concurrency/debounce.h` |
 | launchd and systemd login services | `mc/platform/service.h` |
 
-libmc has no HTTP client and will not get one, since it would have to carry TLS. A project that needs HTTP wraps libcurl or a vendored TLS library in one module of its own.
+libmc has no HTTP client yet. The first project that needs one adds it to libmc, with a decision report covering libcurl or a TLS library, rather than wrapping one privately. The same goes for regex, compression, XML and the other Foundation capabilities the catalog below still lists as third-party libraries.
 
 ### Cloud and vendor SDKs
 
