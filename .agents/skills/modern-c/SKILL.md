@@ -45,6 +45,8 @@ Pick one per project and never add a second. Default order:
 
 Required targets in either: `build`, `test`, `check` (warnings, static analysis), `clean`. A CI config runs all of them on every supported platform.
 
+A project that produces an executable also has `install` and `uninstall`. `install` copies the release binary to `$PREFIX/bin`, default `~/.local`, overridable, with `DESTDIR` honoured for packaging, and nothing else: no config files, no daemons, no edits to shell profiles. `uninstall` removes exactly what `install` placed. CMake's `install()` covers the first; it has no uninstall, so add a target that removes the paths in `install_manifest.txt`. In `build.c`, both are subcommands.
+
 Cross-compilation is a requirement, not a feature. The build must produce at least:
 
 ```text
@@ -264,4 +266,5 @@ It covers the mechanical rules below with file and line. Suppress a finding only
 * Swift, C++ or other language bridging lives in one module in the project, and no libmc change exists for its sake
 * every new dependency is in `deps/`, in `deps.lock`, behind one wrapper, and builds with the project's build system
 * `build`, `test`, `check` pass with sanitizers on every supported platform
+* a project that produces an executable has `install` and `uninstall`, and `uninstall` leaves nothing behind
 * the README's profile declaration is still true
