@@ -62,3 +62,4 @@ temp/
 
 # Claude Code synced skills (managed by claude.ai, per machine)
 /.claude/skills/synced/
+/.claude/skills/.trash/
