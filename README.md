@@ -26,6 +26,7 @@ This is a personal agent configuration repository that provides:
 │   │   ├── browser-automation/
 │   │   ├── c-best-practices/
 │   │   ├── c-libraries/
+│   │   ├── c-web-apps/
 │   │   ├── create-agent/
 │   │   ├── create-rule/
 │   │   ├── create-skill/
@@ -58,6 +59,7 @@ This is a personal agent configuration repository that provides:
 | `browser-automation` | Reliable browser automation using OpenCode Browser primitives |
 | `c-best-practices` | Performance-oriented C style: arenas, pools, length-based strings, explicit ownership |
 | `c-libraries` | Find existing C libraries before reimplementing: libmc first, then a catalog and a Go-to-C package map |
+| `c-web-apps` | Agent-driven web apps in C: Rails-style folder structure and naming, views as C with typed escaping, SQLite, one binary, plain JS or wasm on the client |
 | `create-agent` | Scaffold production-grade subagent configurations |
 | `create-rule` | Create persistent AI guidance rules |
 | `create-skill` | Author new agent skills |
