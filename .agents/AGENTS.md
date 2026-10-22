@@ -10,6 +10,8 @@ Skills live in `~/.agents/skills/<name>/SKILL.md`. Claude Code only discovers sk
 
 # Agent Rules
 
+Give me the bare-minimum version of your response.
+
 Project rules are located in `.agents/rules/` to provide persistent context for the AI agent.
 Global rules are located in `~/.agents/rules/` to provide persistent context for the AI agent.
 
