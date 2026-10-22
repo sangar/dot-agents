@@ -205,8 +205,10 @@ module ModernC
       Dir.children(File.join(root, 'deps')).select { |name| directory?("deps/#{name}") }.sort
     end
 
-    def dep_header_basenames(name)
-      Dir.glob(File.join(root, 'deps', name, '**', '*.h')).map { |path| File.basename(path) }.uniq
+    # dep_header_paths are the dependency's headers, relative to deps/<name>.
+    def dep_header_paths(name)
+      base = File.join(root, 'deps', name)
+      Dir.glob(File.join(base, '**', '*.h')).map { |path| path.delete_prefix("#{base}/") }
     end
 
     def build_files
@@ -491,13 +493,15 @@ module ModernC
 
     def check_dep_leak
       project_headers = project.sources.select(&:header?).map { |source| File.basename(source.relative) }
-      header_owner = {}
+      # dep_headers maps a basename to the [dependency, path] pairs that end in it.
+      dep_headers = Hash.new { |hash, key| hash[key] = [] }
       (project.dep_names - FOUNDATION_DEPS).each do |name|
-        project.dep_header_basenames(name).each do |basename|
-          header_owner[basename] = name unless project_headers.include?(basename)
+        project.dep_header_paths(name).each do |path|
+          basename = File.basename(path)
+          dep_headers[basename] << [name, path] unless project_headers.include?(basename)
         end
       end
-      return [] if header_owner.empty?
+      return [] if dep_headers.empty?
 
       includes = Hash.new { |hash, key| hash[key] = [] }
       project.sources.each do |source|
@@ -505,7 +509,12 @@ module ModernC
           match = line.match(/\A\s*#\s*include\s*["<]([^">]+)[">]/)
           next unless match
 
-          owner = header_owner[File.basename(match[1])]
+          # An include names a dependency header when it is a whole-component
+          # suffix of its path, so <sys/wait.h> is not a dependency's lib/wait.h.
+          included = match[1]
+          owner, = dep_headers.fetch(File.basename(included), []).find do |_, path|
+            path == included || path.end_with?("/#{included}")
+          end
           includes[owner] << [source, index + 1] if owner
         end
       end

@@ -68,6 +68,19 @@ class ModernCTest < Minitest::Test
     refute_includes result['summary'].keys, 'deps-lock'
   end
 
+  def test_dep_leak_matches_include_paths_not_basenames
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, 'src'))
+      FileUtils.mkdir_p(File.join(dir, 'deps', 'curl', 'lib', 'curlx'))
+      File.write(File.join(dir, 'deps', 'curl', 'lib', 'curlx', 'wait.h'), "#pragma once\n")
+      File.write(File.join(dir, 'src', 'a.c'), "#include <sys/wait.h>\n#include \"curlx/wait.h\"\n")
+      File.write(File.join(dir, 'src', 'b.c'), "#include <sys/wait.h>\n#include \"lib/curlx/wait.h\"\n")
+      result = run_check(dir)
+      sites = result['findings'].select { |f| f['rule'] == 'dep-leak' }.map { |f| [f['file'], f['line']] }
+      assert_equal [['src/a.c', 2], ['src/b.c', 2]], sites.sort
+    end
+  end
+
   def test_allow_comments_suppress_findings
     Dir.mktmpdir do |dir|
       FileUtils.mkdir_p(File.join(dir, 'src'))
