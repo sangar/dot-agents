@@ -26,3 +26,7 @@ Agent tools are located in `~/.agents/tools/` to provide agents access to AI too
 # Coding
 
 @~/.agents/rules/coding.md
+
+# Local CI
+
+@~/.agents/rules/local-ci.md

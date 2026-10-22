@@ -66,3 +66,4 @@ After making changes to code, **ALWAYS** run the relevant tests to ensure nothin
 
 - All tests must pass before merging
 - Don't skip failing tests; fix them
+- Run the checks locally before pushing; see `local-ci.md`
