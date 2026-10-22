@@ -43,7 +43,7 @@ Pick one per project and never add a second. Default order:
 1. **CMake >= 3.25** when any vendored dependency already ships CMake. Use presets, `FetchContent` is not used; dependencies are vendored, see rule 10.
 2. **`build.c`** self-bootstrapping build program (nob style) when every dependency is plain source. The build description is C, the build tool is the compiler. libmc's `tools/build.c` is the reference implementation.
 
-Required targets in either: `build`, `test`, `check` (warnings, static analysis), `clean`. A CI config runs all of them on every supported platform.
+Required targets in either: `build`, `test`, `check` (warnings, static analysis), `clean`, `ci`. `ci` runs `build`, `test` and `check` plus the cross-compiled builds, and is run locally before every push. It is the project's CI; there is no cloud CI config, see the `local-ci` rule.
 
 A project that produces an executable also has `install` and `uninstall`. `install` copies the release binary to `$PREFIX/bin`, default `~/.local`, overridable, with `DESTDIR` honoured for packaging, and nothing else: no config files, no daemons, no edits to shell profiles. `uninstall` removes exactly what `install` placed. CMake's `install()` covers the first; it has no uninstall, so add a target that removes the paths in `install_manifest.txt`. In `build.c`, both are subcommands.
 
@@ -225,7 +225,7 @@ Flags, always on:
 -Wstrict-prototypes -Wimplicit-fallthrough -Wno-unused-parameter
 ```
 
-Debug and CI builds add `-fsanitize=address,undefined -fno-omit-frame-pointer`. CI also runs `clang-tidy` with the project's checks file, and tests under the sanitizers on every platform.
+Debug and `ci` builds add `-fsanitize=address,undefined -fno-omit-frame-pointer`. `ci` also runs `clang-tidy` with the project's checks file, and tests under the sanitizers.
 
 Fuzz any parser or decoder that consumes external input with libFuzzer. Keep the corpus in `tests/fuzz/`.
 
@@ -241,7 +241,7 @@ The README states which level the project meets, so a reader knows what to expec
 
 ```text
 Level 1  Modern C    rules 1, 4 to 9, 11 to 14
-Level 2  Managed C   Level 1 plus rules 2, 3, 10, 15: one build, layout, lock file, cross-compilation, CI
+Level 2  Managed C   Level 1 plus rules 2, 3, 10, 15: one build, layout, lock file, cross-compilation, local CI
 Level 3  Hardened C  Level 2 plus clang-tidy gate, fuzzing, coverage threshold, dependency audit on update
 ```
 
