@@ -76,7 +76,7 @@ Already in every project as `deps/libmc`. Nothing here needs a search or a wrapp
 | Arena, dynamic arrays | `mc/core/arena.h` |
 | Error codes and messages | `mc/core/error.h` |
 | Length-based strings, builder, split, join, percent encoding | `mc/text/str.h` |
-| UTF-8, globs, lexical paths | `mc/text/utf8.h`, `mc/text/glob.h`, `mc/text/path.h` |
+| UTF-8, NFC, Unicode case, Norwegian sort order, globs, lexical paths | `mc/text/utf8.h`, `mc/text/unicode.h`, `mc/text/glob.h`, `mc/text/path.h` |
 | Durations, RFC 3339, byte sizes, aligned tables | `mc/text/fmt.h`, `mc/text/table.h` |
 | String-keyed hash map, hashing, stable sort | `mc/container/strmap.h`, `mc/container/hash.h`, `mc/container/sort.h` |
 | SHA-256, HMAC, AWS SigV4 | `mc/crypto/sha256.h`, `mc/crypto/sigv4.h` |
@@ -171,7 +171,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 |------|---------|-------|
 | Regex | `PCRE2` | BSD. Perl-compatible, JIT. |
 | Regex, small | `kokke/tiny-regex-c`, `re2c` for compiled | |
-| Unicode normalisation, case, categories | `JuliaStrings/utf8proc` | MIT. |
+| Unicode normalisation, case, categories | `JuliaStrings/utf8proc` | MIT. Vendored in libmc behind `unicode.h`; use that. |
 | ICU | `unicode-org/icu` | Large. Only when full locale support is needed. |
 | UTF-8 validation and conversion | `simdutf` is C++; `utf8.h` by sheredom is single header C | |
 | Length-based strings | libmc `String` | Views plus arena-allocated copies. Do not add `sds`. |
@@ -239,7 +239,7 @@ When converting a Go project, map each imported package before writing anything.
 | `github.com/aws/aws-sdk-go` s3 | `aws-c-s3`, or libmc `sigv4.h` with an HTTP client |
 | `regexp` | `PCRE2` |
 | `unicode/utf8`, `strings`, `path/filepath` | libmc `utf8.h`, `str.h`, `path.h`, `glob.h` |
-| `unicode`, `golang.org/x/text` | `utf8proc` |
+| `unicode`, `golang.org/x/text` | libmc `unicode.h` |
 | `sync`, goroutines, channels | libmc `threadpool.h`, `queue.h` |
 | `context` cancellation | libmc `cancel.h` |
 | `os/exec`, `os`, `time` | libmc `platform.h` |

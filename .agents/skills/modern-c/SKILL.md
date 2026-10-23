@@ -164,7 +164,7 @@ Borrowed from Zig: the repository contains everything needed to build.
 
 ## 11. Shared Code Lives in libmc
 
-[libmc](https://github.com/sangar/libmc) is the foundation library for every project under this contract: arenas, `String`, `Error`, containers, text, JSON and YAML, logging, concurrency and the platform layer. It is itself a Modern C Level 2 project that needs nothing installed beyond libc, libm and pthreads, apart from the platform TLS and certificate store rule 10 permits once a module needs them; its vendored libraries, yyjson for JSON and cyaml for YAML so far, sit in its own `deps/` and build into it.
+[libmc](https://github.com/sangar/libmc) is the foundation library for every project under this contract: arenas, `String`, `Error`, containers, text, JSON and YAML, logging, concurrency and the platform layer. It is itself a Modern C Level 2 project that needs nothing installed beyond libc, libm and pthreads, apart from the platform TLS and certificate store rule 10 permits once a module needs them; its vendored libraries, yyjson for JSON, cyaml for YAML and utf8proc for Unicode so far, sit in its own `deps/` and build into it.
 
 **Direction.** libmc grows toward a Modern C counterpart to Apple's Foundation: URLs and HTTP, dates, time zones and calendars, regular expressions, compression, property lists and XML, Unicode, preferences, and the rest of what Foundation offers that a C program can use. It is that capability in this contract's style, not a port of Foundation's API: arenas instead of reference counting, `Error` instead of `NSError`, explicit handles instead of shared singletons such as `URLSession.shared` or `UserDefaults.standard`. Each module still lands when a project needs it, through the contribution steps below. Out of scope is what exists only for the Objective-C runtime or Apple's services: key-value observing and coding, `NSCoding` archives, proxies, scripting, Spotlight, iCloud, XPC.
 
@@ -175,7 +175,7 @@ Before writing a helper, read its module table:
 | Area | Headers | Covers |
 |------|---------|--------|
 | core | `base.h`, `error.h`, `arena.h` | `countof`, `unused`, `Error`, `Err`, arenas, `arena_grow` for dynamic arrays |
-| text | `str.h`, `utf8.h`, `glob.h`, `path.h`, `fmt.h`, `table.h` | views, builders, split and join, percent encoding, UTF-8, globs, lexical paths, durations, RFC 3339, byte sizes, aligned columns |
+| text | `str.h`, `utf8.h`, `unicode.h`, `glob.h`, `path.h`, `fmt.h`, `table.h` | views, builders, split and join, percent encoding, UTF-8, NFC, Unicode case, Norwegian sort order, globs, lexical paths, durations, RFC 3339, byte sizes, aligned columns |
 | container | `strmap.h`, `hash.h`, `sort.h` | string-keyed hash map, FNV-1a, stable sort and top-k |
 | crypto | `sha256.h`, `sigv4.h` | SHA-256, HMAC, hex, AWS Signature V4 |
 | platform | `platform.h`, `watch.h`, `service.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets, recursive file watching, launchd and systemd login services |
@@ -214,7 +214,7 @@ Not allowed: function-like macros as a substitute for functions, macro-generated
 
 libmc's `mc/platform/platform.h` is the platform layer: clock, threads, files, directories, processes, environment, signals and sockets, in portable types. Use it before writing any OS call.
 
-What libmc lacks goes in the project's `src/platform/`, one file per OS and one header declaring the portable interface in `String`, `size_t`, `Error` and opaque handles, and is a PR to libmc under rule 11. Nothing outside `src/platform/` and libmc includes `<windows.h>`, `<unistd.h>`, `<sys/...>`, or tests `_WIN32`. UTF-8 everywhere; conversion to wide strings happens in the Windows platform file.
+What libmc lacks goes in the project's `src/platform/`, one file per OS and one header declaring the portable interface in `String`, `size_t`, `Error` and opaque handles, and is a PR to libmc under rule 11. Nothing outside `src/platform/` and libmc includes `<windows.h>`, `<unistd.h>`, `<sys/...>`, or tests `_WIN32`. UTF-8 everywhere, rule 16; conversion to wide strings happens in the Windows platform file.
 
 ## 14. Undefined Behaviour Is a Build Failure
 
@@ -235,12 +235,23 @@ An application rebuilds everything together. It links dependencies statically an
 
 A library with external users declares an ABI boundary deliberately: opaque types, a versioned header, no struct layouts in the public API. Nothing in between.
 
-## 16. Declare the Level
+## 16. Text Is UTF-8
+
+Code that works on ASCII breaks on the first æ, ø or å. Handle them from the first line, not when a user reports it.
+
+* Every `String` holding text is valid UTF-8 in NFC. Convert where text enters: `utf8_is_valid` or `utf8_from_latin1` for bytes from files, sockets and users; `unicode_nfc` for filenames, which macOS returns decomposed, with "å" as `a` followed by U+030A.
+* Case conversion, case-insensitive comparison and sorting of text go through libmc's `mc/text/unicode.h`: `unicode_lower`, `unicode_upper`, `unicode_equal_ignore_case`. `ctype.h`, `strcasecmp` and `str_*_ascii` are for protocol tokens only, such as HTTP headers and hex, with `// modern-c: allow ascii-text` on the line.
+* Sorting for people uses `unicode_compare_norwegian` and `unicode_sort_norwegian`, not `str_compare`: bytewise order puts å before æ and ø.
+* Bytes are not characters. Count, pad and cut by code point with `utf8_decode` and `utf8_count`, never in the middle of a sequence.
+* Source files are UTF-8, and literals may contain æ, ø and å directly.
+* Tests that touch text include æ, ø and å in both cases, and "å" in decomposed form.
+
+## 17. Declare the Level
 
 The README states which level the project meets, so a reader knows what to expect.
 
 ```text
-Level 1  Modern C    rules 1, 4 to 9, 11 to 14
+Level 1  Modern C    rules 1, 4 to 9, 11 to 14, 16
 Level 2  Managed C   Level 1 plus rules 2, 3, 10, 15: one build, layout, lock file, cross-compilation, local CI
 Level 3  Hardened C  Level 2 plus clang-tidy gate, fuzzing, coverage threshold, dependency audit on update
 ```
@@ -265,6 +276,7 @@ It covers the mechanical rules below with file and line. Suppress a finding only
 * every helper that is not specific to the project is in libmc, or in an open libmc PR the user has been told about
 * Swift, C++ or other language bridging lives in one module in the project, and no libmc change exists for its sake
 * every new dependency is in `deps/`, in `deps.lock`, behind one wrapper, and builds with the project's build system
-* `build`, `test`, `check` pass with sanitizers on every supported platform
+* text is compared, cased and sorted with libmc's Unicode functions, and tests cover æ, ø and å
+* `ci` passes locally with sanitizers
 * a project that produces an executable has `install` and `uninstall`, and `uninstall` leaves nothing behind
 * the README's profile declaration is still true
