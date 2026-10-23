@@ -38,3 +38,13 @@ int main(void)
     printf("%s %d\n", text, MAX(counter, visible_total));
     return 0;
 }
+
+bool same_name(Arena *arena, String a, String b)
+{
+    return str_equal(str_lower_ascii(arena, a), b) || tolower(a.data[0]) == 'x';
+}
+
+int status_code(const char *header)
+{
+    return toupper(header[0]); // modern-c: allow ascii-text
+}

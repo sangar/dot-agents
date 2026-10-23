@@ -34,6 +34,7 @@ Without arguments and with JSON on stdin, the tool reads `{"command": "check", "
 | `nodiscard` | 1 | A function returning the project `Error` type declared in a header, or `static` in a `.c`, without `[[nodiscard]]` |
 | `warnings` | 1 | Build file lacks `-Wall`, `-Wextra`, or `-Werror`/`COMPILE_WARNING_AS_ERROR` |
 | `sanitizers` | 1 | Build file has no `-fsanitize=address` and `undefined` configuration |
+| `ascii-text` | 1 | Calls to `isalpha`, `isalnum`, `isupper`, `islower`, `toupper`, `tolower`, `strcasecmp`, `strncasecmp`, `str_lower_ascii` or `str_upper_ascii`, which break on æ, ø and å. Allow it on the line for protocol tokens such as HTTP headers |
 | `build-system` | 2 | Makefile, Meson, autotools or other unsupported build files; no CMakeLists.txt or build.c; or both |
 | `layout` | 2 | Missing `src/`, `tests/` or `README.md`; a `vendor/` or `third_party/` directory |
 | `deps-lock` | 2 | `deps/` without `deps.lock`, entries without directories, directories without entries, malformed lines, content hash mismatch |

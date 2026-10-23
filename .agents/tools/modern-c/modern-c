@@ -19,6 +19,7 @@ module ModernC
     'nodiscard' => 1,
     'warnings' => 1,
     'sanitizers' => 1,
+    'ascii-text' => 1,
     'build-system' => 2,
     'layout' => 2,
     'deps-lock' => 2,
@@ -34,6 +35,9 @@ module ModernC
   ].freeze
   PLATFORM_HEADER = %r{\A(windows\.h|winsock2\.h|ws2tcpip\.h|io\.h|direct\.h|process\.h|unistd\.h|dirent\.h|fcntl\.h|pthread\.h|poll\.h|netdb\.h|sys/.+|netinet/.+|arpa/.+|mach/.+|CoreFoundation/.+|CoreServices/.+)\z}
   ALLOWED_FUNCTION_MACROS = %w[countof unused COUNTOF UNUSED].freeze
+  ASCII_TEXT_FUNCTIONS = %w[
+    isalpha isalnum isupper islower toupper tolower strcasecmp strncasecmp str_lower_ascii str_upper_ascii
+  ].freeze
   ALLOCATOR_FILE = /arena|pool|alloc/
   FOUNDATION_DEPS = %w[libmc].freeze
   SKIPPED_DIRS = %w[.git deps build out node_modules].freeze
@@ -384,6 +388,27 @@ module ModernC
       line_findings('malloc', /\b(malloc|calloc|realloc|free|strdup)\s*\(/, sources: sources) do |match|
         "#{match[1]} outside an allocator or dependency wrapper; allocate from an arena or pool"
       end
+    end
+
+    def check_ascii_text
+      findings = []
+      each_line do |source, line, number|
+        line.scan(/\b(#{ASCII_TEXT_FUNCTIONS.join('|')})\s*\(/) do |(name)|
+          next if declared_here?(Regexp.last_match.pre_match)
+
+          findings << finding('ascii-text', "#{name} handles ASCII letters only and breaks on æ, ø and å; " \
+                                            'use libmc Unicode text functions, or allow it for protocol tokens',
+                              file: source.relative, line: number)
+        end
+      end
+      findings
+    end
+
+    # declared_here? is true when the text before a name is a return type, as in
+    # a declaration or definition, rather than the start of a call.
+    def declared_here?(prefix)
+      type = prefix.match(/\b([A-Za-z_]\w*)[\s*]+\z/)
+      type && !%w[return else case sizeof].include?(type[1])
     end
 
     def check_nodiscard

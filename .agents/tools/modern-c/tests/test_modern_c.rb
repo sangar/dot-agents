@@ -26,6 +26,8 @@ class ModernCTest < Minitest::Test
     result = run_check(File.join(FIXTURES, 'violations'), '--level', '3')
     sites = result['findings'].map { |f| [f['rule'], f['file'], f['line']] }
     expected = [
+      ['ascii-text', 'src/main.c', 44],
+      ['ascii-text', 'src/main.c', 44],
       ['build-system', 'Makefile', nil],
       ['clang-tidy', nil, nil],
       ['dep-leak', 'src/main.c', 4],
@@ -78,6 +80,16 @@ class ModernCTest < Minitest::Test
       result = run_check(dir)
       sites = result['findings'].select { |f| f['rule'] == 'dep-leak' }.map { |f| [f['file'], f['line']] }
       assert_equal [['src/a.c', 2], ['src/b.c', 2]], sites.sort
+    end
+  end
+
+  def test_ascii_text_ignores_declarations_and_definitions
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, 'src'))
+      File.write(File.join(dir, 'src', 'str.h'), "String str_lower_ascii(Arena *arena, String s);\n")
+      File.write(File.join(dir, 'src', 'str.c'), "static inline int tolower(int c)\n{\n    return c;\n}\n")
+      result = run_check(dir)
+      assert_empty result['findings'].select { |f| f['rule'] == 'ascii-text' }
     end
   end
 
