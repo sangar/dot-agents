@@ -187,7 +187,7 @@ Before writing a helper, read its module table:
 | crypto | `sha256.h`, `sigv4.h` | SHA-256, HMAC, hex, AWS Signature V4 |
 | platform | `platform.h`, `watch.h`, `service.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets, recursive file watching, launchd and systemd login services |
 | concurrency | `cancel.h`, `debounce.h`, `queue.h`, `threadpool.h` | cancellation tokens, per-key debouncing, blocking queue, thread pool, parallel loops |
-| encoding | `node.h`, `json.h`, `yaml.h` | document tree, strict JSON parse and encode, YAML parse |
+| encoding | `node.h`, `json.h`, `yaml.h`, `markdown.h` | document tree, strict JSON parse and encode, YAML parse, Markdown to HTML |
 | net | `http.h` | HTTPS requests with HTTP/2, decoded gzip, allowed hosts and limits |
 | log | `log.h` | structured logging, text or JSON lines |
 

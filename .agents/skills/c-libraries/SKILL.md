@@ -141,6 +141,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 | MessagePack | `msgpack/msgpack-c`, `ludocode/mpack` | |
 | CBOR | `intel/tinycbor`, `PJK/libcbor` | |
 | CSV | libmc `mc/encoding/csv.h` | RFC 4180, one record at a time. |
+| Markdown | libmc `mc/encoding/markdown.h` | CommonMark and GitHub's extensions to HTML, on md4c. |
 | Base64, URL encoding | `libcurl` has URL API; base64 is small enough to write | |
 
 ### Compression and archives
