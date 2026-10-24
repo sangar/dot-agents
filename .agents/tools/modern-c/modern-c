@@ -563,13 +563,21 @@ module ModernC
             findings << finding('dep-leak', "deps/#{name} included from a project header; headers use project types only",
                                 file: source.relative, line: number)
           end
-          next if files.size == 1
+          next if one_wrapper_module?(files)
 
-          findings << finding('dep-leak', "deps/#{name} included from #{files.size} files; confine it to one wrapper module",
+          findings << finding('dep-leak', "deps/#{name} included from #{files.size} files; confine it to one wrapper " \
+                                          'module, a file or one directory below src/',
                               file: source.relative, line: number)
         end
       end
       findings
+    end
+
+    # one_wrapper_module? is true for one file, or for files that share a
+    # directory below the top level, such as libmc's src/net/ for curl.
+    def one_wrapper_module?(files)
+      directories = files.map { |file| File.dirname(file) }.uniq
+      files.size == 1 || (directories.size == 1 && directories.first.include?('/'))
     end
 
     def check_readme_profile

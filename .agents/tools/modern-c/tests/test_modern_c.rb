@@ -82,6 +82,22 @@ class ModernCTest < Minitest::Test
     end
   end
 
+  def test_dep_leak_allows_one_wrapper_directory_below_src
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, 'deps', 'curl', 'include', 'curl'))
+      File.write(File.join(dir, 'deps', 'curl', 'include', 'curl', 'curl.h'), "#pragma once\n")
+      %w[src/net/http.c src/net/smtp.c src/app/feed.c].each do |file|
+        FileUtils.mkdir_p(File.join(dir, File.dirname(file)))
+        File.write(File.join(dir, file), "#include <curl/curl.h>\n")
+      end
+      sites = run_check(dir)['findings'].select { |f| f['rule'] == 'dep-leak' }.map { |f| f['file'] }
+      assert_equal %w[src/app/feed.c src/net/http.c src/net/smtp.c], sites.sort
+
+      FileUtils.rm(File.join(dir, 'src', 'app', 'feed.c'))
+      assert_empty run_check(dir)['findings'].select { |f| f['rule'] == 'dep-leak' }
+    end
+  end
+
   def test_ascii_text_ignores_declarations_and_definitions
     Dir.mktmpdir do |dir|
       FileUtils.mkdir_p(File.join(dir, 'src'))

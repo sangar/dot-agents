@@ -39,7 +39,7 @@ Without arguments and with JSON on stdin, the tool reads `{"command": "check", "
 | `build-system` | 2 | Makefile, Meson, autotools or other unsupported build files; no CMakeLists.txt or build.c; or both |
 | `layout` | 2 | Missing `src/`, `tests/` or `README.md`; a `vendor/` or `third_party/` directory |
 | `deps-lock` | 2 | `deps/` without `deps.lock`, directories without entries, malformed lines, content hash mismatch, an archive line with no source line of the same name and version |
-| `dep-leak` | 2 | A header from `deps/<name>/` included from a project header, or from more than one project file. `deps/libmc` is exempt: its headers are the project vocabulary |
+| `dep-leak` | 2 | A header from `deps/<name>/` included from a project header, or from more than one project file unless they share one directory below the top level, such as `src/net/`. `deps/libmc` is exempt: its headers are the project vocabulary |
 | `readme-profile` | 2 | README does not state the C standard or the Modern C level |
 | `clang-tidy` | 3 | No `.clang-tidy` file |
 | `fuzz` | 3 | No `tests/fuzz/` directory |

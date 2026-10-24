@@ -82,7 +82,7 @@ Already in every project as `deps/libmc`. Nothing here needs a search or a wrapp
 | SHA-256, HMAC, AWS SigV4 | `mc/crypto/sha256.h`, `mc/crypto/sigv4.h` |
 | JSON parse and encode, YAML parse | `mc/encoding/json.h`, `mc/encoding/yaml.h` |
 | Markdown to HTML, XML events | `mc/encoding/markdown.h`, `mc/encoding/xml.h` |
-| HTTPS client | `mc/net/http.h` |
+| HTTPS client, sending mail | `mc/net/http.h`, `mc/net/smtp.h` |
 | Structured logging | `mc/log/log.h` |
 | Threads, thread pool, queue, cancellation | `mc/platform/platform.h`, `mc/concurrency/*.h` |
 | Files, directories, processes, environment, signals, sockets, clock | `mc/platform/platform.h` |
@@ -272,14 +272,14 @@ Keep it to one screen. A reader should finish it knowing what to trust, what to 
 
 The wrapper module is where the library stops and the project begins.
 
-* One `src/<capability>.c` and `.h` per dependency, named for the capability, not the library: `s3.c`, not `curl_s3.c`.
+* One `src/<capability>.c` and `.h` per dependency, named for the capability, not the library: `s3.c`, not `curl_s3.c`. When several capabilities share a dependency, each keeps its own file in one directory below `src/`, as libmc's `src/net/http.c` and `src/net/smtp.c` share curl.
 * The header uses only project types: `String`, `Arena *`, `Error`, opaque handles. No library header is included from it.
 * Library error codes map to the project `Error` enum inside the wrapper.
 * Library allocations are routed through its allocator hooks into an arena, or owned and freed within the wrapper so nothing escapes.
 * Library globals and init calls, such as `curl_global_init`, happen once inside the wrapper's context create and destroy.
 * The wrapper is tested through its own header, against a real instance where one exists, such as a local MinIO for S3.
 
-Done right, the decision report's "confined to one file" claim is literally true.
+Done right, the decision report's "confined to one file" claim is literally true, or "one directory" where capabilities share the dependency.
 
 ## When Reimplementing Is Right
 
