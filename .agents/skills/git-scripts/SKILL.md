@@ -20,7 +20,7 @@ A collection of command-line utilities for analyzing git repository history and 
 ## Prerequisites
 
 - Git repository
-- Scripts in PATH or accessible
+- Run each script by its full path, `~/.agents/tools/git/<script>`; they are not on PATH
 - Run from repository root
 
 ## Usage Examples
@@ -100,7 +100,7 @@ Use these scripts when:
 
 ## Customization
 
-Scripts use a 1-year lookback by default. Adjust time window by editing the `--since` parameter:
+`git-what-changed` and `git-firefight` look back one year; the other scripts cover all history. For another window, run the script's `git log` with your own `--since` instead of editing the script:
 
 ```bash
 git log --since="6 months ago"

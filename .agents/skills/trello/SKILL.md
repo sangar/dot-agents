@@ -256,14 +256,13 @@ echo "$result" | ruby -rjson -e 'data = JSON.parse(STDIN.read); puts data["data"
 - **Input**: JSON via stdin
 - **Output**: JSON to stdout
 - **Network**: Only connects to `api.trello.com:443`
-- **Timeout**: 60 seconds max execution
-- **Retries**: Up to 3 attempts with exponential backoff
+- **Timeouts**: 10 seconds to connect, 30 seconds to read; no automatic retries
 - **Rate Limits**: Trello API limits (100 requests per 10 seconds per token)
 
 ## Security Notes
 
 - API credentials should be passed via environment variables, not in JSON params
 - All IDs are sanitized to prevent injection attacks
-- `delete_card` is marked as destructive and requires explicit confirmation
+- `delete_card` is permanent and the tool does not ask for confirmation, so ask the user first
 - No filesystem access required
 - Network restricted to Trello API only
