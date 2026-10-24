@@ -1,6 +1,6 @@
 ---
 name: modern-c
-description: Project contract for writing C as a modern, self-contained language profile inspired by Go, Rust, Zig, Odin and Jai - one compiler family, one C standard, one build system, the libmc foundation library for shared code, vendored and pinned source dependencies, no global mutable state, one error model, explicit ownership, platform code isolated, warnings as errors and sanitizers on. Use when starting or restructuring a C project, adding a dependency, writing a reusable helper, choosing build or compiler settings, designing a module API, or reviewing a C codebase for legacy practices.
+description: Project contract for writing C as a modern, self-contained language profile inspired by Go, Rust, Zig, Odin and Jai - one compiler family, one C standard, one build system, the libmc foundation library for shared code, pinned source dependencies fetched by the build, no global mutable state, one error model, explicit ownership, platform code isolated, warnings as errors and sanitizers on. Use when starting or restructuring a C project, adding a dependency, writing a reusable helper, choosing build or compiler settings, designing a module API, or reviewing a C codebase for legacy practices.
 ---
 
 # Modern C
@@ -40,7 +40,7 @@ Compilers:  clang >= 18 (primary), gcc >= 14, msvc >= 19.40 when Windows matters
 
 Pick one per project and never add a second. Default order:
 
-1. **CMake >= 3.25** when any vendored dependency already ships CMake. Use presets, `FetchContent` is not used; dependencies are vendored, see rule 10.
+1. **CMake >= 3.25** when any dependency already ships CMake. Use presets; `FetchContent` is not used, the build fetches what `deps.lock` pins, see rule 10.
 2. **`build.c`** self-bootstrapping build program (nob style) when every dependency is plain source. The build description is C, the build tool is the compiler. libmc's `tools/build.c` is the reference implementation.
 
 Required targets in either: `build`, `test`, `check` (warnings, static analysis), `clean`, `ci`. `ci` runs `build`, `test` and `check` plus the cross-compiled builds, and is run locally before every push. It is the project's CI. Never add cloud CI config; an existing workflow stays, but it is not the gate, see the `local-ci` rule.
@@ -62,7 +62,7 @@ project/
 ├── src/            application and library code
 │   └── platform/   the only place OS headers and #ifdef _WIN32 may appear
 ├── include/        public headers, only for a library with external users
-├── deps/           vendored dependency sources, one directory each
+├── deps/           fetched dependency sources, one directory each, ignored by git
 │   └── libmc/      the foundation library, always present
 ├── tests/
 ├── tools/          build.c, scripts, generators
@@ -116,7 +116,7 @@ A function taking an `Arena *` allocates only from it. A function without one do
 
 The project allocates through libmc arenas (`mc/core/arena.h`), `arena_mark` and `arena_release` for scratch work, and pools as in `c-best-practices`. Running out of memory aborts; `ERR_OUT_OF_MEMORY` is for wrapped dependencies that report it. `malloc` appears only inside libmc's arena, project pool implementations, and dependency wrappers.
 
-A vendored library must either accept allocator hooks that route into the project's arenas, or have every one of its allocations confined inside its wrapper module so nothing it allocates escapes.
+A dependency must either accept allocator hooks that route into the project's arenas, or have every one of its allocations confined inside its wrapper module so nothing it allocates escapes.
 
 ## 8. No Global Mutable State
 
@@ -150,18 +150,19 @@ typedef enum Error {
 
 Programmer errors are assertions, not `Error` values. See `c-best-practices` rules 25 and 26.
 
-## 10. Dependencies Are Vendored Source
+## 10. Dependencies Are Pinned Source, Fetched by the Build
 
-Borrowed from Zig: the repository contains everything needed to build.
+Borrowed from Zig: `deps.lock` pins every dependency by the hash of its content, and the build fetches it. A fresh clone builds with a C compiler, `curl` and `tar` and nothing else installed; the first build needs the network.
 
-* Each dependency is copied into `deps/<name>/` at a pinned upstream version.
-* `deps.lock` records one line per dependency, `name version url sha256:<hash>` with the hash from `modern-c hash deps/<name>`, and one line per platform for each prebuilt archive. Updating a dependency is a commit that changes the lock and the directory together.
-* Dependencies build with the project's build system. If upstream uses CMake, its `CMakeLists.txt` is used via `add_subdirectory`. If it uses anything else, the project builds its sources directly.
+* `deps.lock` records one line per dependency, `name version url sha256:<hash>`, and one line per platform for each prebuilt archive. The hash is `modern-c hash` of the unpacked directory, so it does not depend on how the archive was packed.
+* The URL is a `.tar.gz` with one top-level directory. For third-party code it is a release asset of the project's GitHub repository, tagged `deps-<name>-<version>`: the pinned upstream source trimmed to what the build compiles plus its license, with the upstream URL in the release notes. Upstream links break; the project's own do not. Assets are never replaced; changed content gets a new version. For a repository the user controls, such as libmc, it can be GitHub's archive of a commit, `https://github.com/<owner>/<repo>/archive/<commit>.tar.gz`.
+* `deps/` is in `.gitignore`. The build fetches `deps/<name>/` when it is missing or does not match its hash, refuses an archive that does not match, and says what it needs when the network or `curl` is missing. Updating a dependency is publishing its new archive and committing its lock line. libmc's `tools/build.c` and `tools/publish-dep.sh` are the reference.
+* Dependencies build with the project's build system. If upstream uses CMake, its `CMakeLists.txt` is used via `add_subdirectory`. If it uses anything else, the project builds its sources directly. A dependency that is itself a project under this contract, such as libmc, builds with its own build program, which fetches its dependencies into its own `deps/`; the hash skips the `deps/`, `out/` and `nob` at the top of a dependency, since that build creates them.
 * **Prebuilt archives.** A dependency whose source build needs its own configuration step, such as curl or mbedTLS, may also ship as a static archive per platform, as a cache of building it from source:
-  * `./nob deps` builds it from the vendored source with the project's configuration and zig, deterministically, so a rebuild gives the same hash.
+  * `./nob deps` builds it from the fetched source with the project's configuration and zig, deterministically, so a rebuild gives the same hash.
   * It is published as a release asset of the project's GitHub repository, tagged `deps-<name>-<version>`, with the dependency's license inside. Assets are never replaced; a changed archive gets a new tag.
   * `deps.lock` pins each platform's archive by URL and sha256, and the build refuses a mismatch.
-  * The build downloads it on first use into `~/.cache/modern-c/<sha256>/` and works offline after that. Without the archive or the network, it builds the dependency from source.
+  * The build downloads it on first use into `~/.cache/modern-c/<sha256>/`. Without an archive for the platform, it builds the dependency from source.
   * Static archives only, never `.so` or `.dylib`.
 * No `apt install`, `brew install`, `pkg-config`, or `find_package` for anything the project could carry. The single permitted exception is the platform TLS and certificate store, where tracking OS security updates outweighs reproducibility. Declare it in the README.
 * Every dependency sits behind one wrapper module in `src/`. Its headers are included only there. Its types, macros, error codes and allocations do not cross the wrapper. Swapping the dependency changes one file. libmc is the one exception, rule 11.
@@ -170,11 +171,11 @@ Borrowed from Zig: the repository contains everything needed to build.
 
 ## 11. Shared Code Lives in libmc
 
-[libmc](https://github.com/sangar/libmc) is the foundation library for every project under this contract: arenas, `String`, `Error`, containers, text, JSON and YAML, logging, concurrency and the platform layer. It is itself a Modern C Level 2 project that needs nothing installed beyond libc, libm and pthreads, apart from the platform TLS and certificate store rule 10 permits once a module needs them; its vendored libraries, yyjson for JSON, cyaml for YAML and utf8proc for Unicode so far, sit in its own `deps/` and build into it.
+[libmc](https://github.com/sangar/libmc) is the foundation library for every project under this contract: arenas, `String`, `Error`, containers, text, JSON and YAML, logging, concurrency and the platform layer. It is itself a Modern C Level 2 project that needs nothing installed beyond libc, libm and pthreads, apart from the platform TLS and certificate store rule 10 permits once a module needs them; its libraries, yyjson for JSON, cyaml for YAML and utf8proc for Unicode so far, are pinned in its own `deps.lock` and build into it.
 
 **Direction.** libmc grows toward a Modern C counterpart to Apple's Foundation: URLs and HTTP, dates, time zones and calendars, regular expressions, compression, property lists and XML, Unicode, preferences, and the rest of what Foundation offers that a C program can use. It is that capability in this contract's style, not a port of Foundation's API: arenas instead of reference counting, `Error` instead of `NSError`, explicit handles instead of shared singletons such as `URLSession.shared` or `UserDefaults.standard`. Each module still lands when a project needs it, through the contribution steps below. Out of scope is what exists only for the Objective-C runtime or Apple's services: key-value observing and coding, `NSCoding` archives, proxies, scripting, Spotlight, iCloud, XPC.
 
-**Using it.** Vendor it as `deps/libmc/` with a `deps.lock` line like any dependency, add `deps/libmc/include` to the include path and compile `deps/libmc/src/*/*.c` with the project, plus `deps/libmc/deps/*/*.c` as C11 without the warning flags and with each `deps/libmc/deps/<name>` on the include path. A project that uses yyjson directly includes it from there instead of vendoring a second copy. Link `-lpthread -lm`, and `-framework CoreServices` on macOS. Unlike every other dependency, its headers are included wherever they are needed: `mc/text/str.h` is where `String` comes from. The checker exempts it from the wrapper rule.
+**Using it.** Pin it as `deps/libmc/` in `deps.lock` with GitHub's archive of a commit, and on every build run its own build program in `deps/libmc/`: `cc tools/build.c -o nob` once, then `./nob release`, or `./nob` for a debug build with sanitizers. That fetches libmc's dependencies into `deps/libmc/deps/` and builds `deps/libmc/out/release/libmc.a`, or `out/debug/libmc.a`, incrementally. Link it with `-lpthread -lm`, and `-framework CoreServices -framework SystemConfiguration -framework CoreFoundation` on macOS, and add `deps/libmc/include` to the include path. A project that uses yyjson directly includes it from `deps/libmc/deps/yyjson` instead of pinning a second copy. Unlike every other dependency, its headers are included wherever they are needed: `mc/text/str.h` is where `String` comes from. The checker exempts it from the wrapper rule.
 
 Before writing a helper, read its module table:
 
@@ -187,19 +188,20 @@ Before writing a helper, read its module table:
 | platform | `platform.h`, `watch.h`, `service.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets, recursive file watching, launchd and systemd login services |
 | concurrency | `cancel.h`, `debounce.h`, `queue.h`, `threadpool.h` | cancellation tokens, per-key debouncing, blocking queue, thread pool, parallel loops |
 | encoding | `node.h`, `json.h`, `yaml.h` | document tree, strict JSON parse and encode, YAML parse |
+| net | `http.h` | HTTPS requests with HTTP/2, decoded gzip, allowed hosts and limits |
 | log | `log.h` | structured logging, text or JSON lines |
 
 **Bridging stays in the project.** libmc is plain C with a plain C ABI and knows nothing about who calls it. It takes and returns its own types: `String`, `Arena *`, `Error`, `Err *`, fixed-layout structs, opaque handles. A project that uses it from Swift, C++, Rust, Zig, Go or Objective-C does the translation on its own side, in one bridging module: a Swift bridging header and a `String` to `Swift.String` layer, an `extern "C"` wrapper with RAII handles in C++, cgo conversions in Go. Nothing for that goes into libmc: no `#ifdef __cplusplus` or `extern "C"` blocks in its headers, the caller adds them; no Foundation or CoreFoundation types such as `NSString` or `CFString` in its headers; framework APIs only inside `src/platform/`, where an OS service needs them; no callback shapes designed for one host language; no OS-specific API outside `src/platform/`. A libmc PR that exists only to make one language's bridge easier is declined. The bridge changes instead.
 
-**The contribution test.** If a function, type or module would be useful in any other C project, it belongs in libmc, not in `src/`. Base64, a ring buffer, a CLI argument parser: all libmc. What stays in the project is code that only makes sense with the project's domain, plus wrappers for its other dependencies. Anything in libmc's direction belongs there too, even when it needs a vendored library: an HTTP client is a libmc module, with libcurl or a TLS library chosen in a `c-libraries` decision report.
+**The contribution test.** If a function, type or module would be useful in any other C project, it belongs in libmc, not in `src/`. Base64, a ring buffer, a CLI argument parser: all libmc. What stays in the project is code that only makes sense with the project's domain, plus wrappers for its other dependencies. Anything in libmc's direction belongs there too, even when it needs a third-party library: an HTTP client is a libmc module, with libcurl or a TLS library chosen in a `c-libraries` decision report.
 
 **Contributing.** When the project needs shared code libmc lacks, or a new `Error` code, or a platform call:
 
 1. Clone `github.com/sangar/libmc`, branch from `master`.
-2. Add `include/mc/<area>/<module>.h` with contract comments, `src/<area>/<module>.c`, and cases in `tests/test_<module>.c` registered in `tests/test.h` and `tests/main.c`. Follow the conventions in its README: arena-allocating functions take `Arena *`, fallible ones return `Error` with a trailing `Err *`, no globals, nothing for a host language or framework. A new dependency needs a `c-libraries` decision report the user has approved, goes into libmc's `deps/` and `deps.lock`, and stays inside one module, bundled as rule 10 describes.
+2. Add `include/mc/<area>/<module>.h` with contract comments, `src/<area>/<module>.c`, and cases in `tests/test_<module>.c` registered in `tests/test.h` and `tests/main.c`. Follow the conventions in its README: arena-allocating functions take `Arena *`, fallible ones return `Error` with a trailing `Err *`, no globals, nothing for a host language or framework. A new dependency needs a `c-libraries` decision report the user has approved, is published and pinned in libmc's `deps.lock`, and stays inside one module, bundled as rule 10 describes.
 3. Run `./nob check`. It must pass clean under the sanitizers and the `modern-c` checker.
 4. Push the branch and open the pull request with `gh pr create`, describing what the module does and which project needed it. Follow the user's commit rules; no AI attribution.
-5. Vendor the branch commit into the project's `deps/libmc/` and pin it in `deps.lock` with the branch URL, so the project builds now. After the merge, re-pin to `master`.
+5. Pin the branch commit in the project's `deps.lock` with GitHub's archive of that commit, so the project builds now. A wrong hash makes the build print the right one. After the merge, re-pin to the merge commit on `master`.
 6. Tell the user the PR link and that the project is pinned to the branch until it merges.
 
 A private helper in `src/` with a note that it should move to libmc later is not an option. The PR is part of the change.
@@ -214,7 +216,7 @@ Allowed:
 * `static_assert`
 * `countof(array)` and `unused(x)`, which come from `mc/core/base.h` and are not redefined
 
-Not allowed: function-like macros as a substitute for functions, macro-generated declarations, X-macros, macro DSLs. Use `static inline` functions and plain code. A vendored library's macros stay inside its wrapper.
+Not allowed: function-like macros as a substitute for functions, macro-generated declarations, X-macros, macro DSLs. Use `static inline` functions and plain code. A dependency's macros stay inside its wrapper.
 
 ## 13. Platform Code at the Edge
 

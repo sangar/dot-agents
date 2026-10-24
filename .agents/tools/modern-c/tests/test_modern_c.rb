@@ -35,7 +35,6 @@ class ModernCTest < Minitest::Test
       ['dep-leak', 'src/store.h', 3],
       ['dep-leak', 'src/store.h', 3],
       ['deps-lock', 'deps.lock', 2],
-      ['deps-lock', 'deps.lock', 3],
       ['deps-lock', 'deps.lock', 4],
       ['deps-lock', 'deps/zlib', nil],
       ['errno', 'src/main.c', 35],
@@ -123,6 +122,18 @@ class ModernCTest < Minitest::Test
     second, = Open3.capture2('ruby', TOOL, 'hash', dir)
     assert_equal first, second
     assert_includes File.read(File.join(FIXTURES, 'clean', 'deps.lock')), first.strip
+  end
+
+  def test_hash_ignores_what_a_dependency_build_creates
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, 'lib.c'), "int lib;\n")
+      before, = Open3.capture2('ruby', TOOL, 'hash', dir)
+      %w[deps/curl out].each { |sub| FileUtils.mkdir_p(File.join(dir, sub)) }
+      File.write(File.join(dir, 'deps', 'curl', 'curl.c'), "int curl;\n")
+      File.write(File.join(dir, 'nob'), 'binary')
+      after, = Open3.capture2('ruby', TOOL, 'hash', dir)
+      assert_equal before, after
+    end
   end
 
   def test_deps_lock_accepts_archive_lines_that_match_a_source_line

@@ -152,10 +152,13 @@ module ModernC
     out
   end
 
+  # A dependency's own build creates deps/, out/ and nob at its top, so they are not its content.
+  HASH_SKIPPED = %w[.git deps out nob].freeze
+
   def self.directory_hash(dir)
     digest = Digest::SHA256.new
     Dir.glob('**/*', File::FNM_DOTMATCH, base: dir).sort.each do |rel|
-      next if rel == '.git' || rel.start_with?('.git/') || File.basename(rel) == '.DS_Store'
+      next if HASH_SKIPPED.include?(rel.split('/', 2).first) || File.basename(rel) == '.DS_Store'
 
       path = File.join(dir, rel)
       next unless File.file?(path)
@@ -505,7 +508,7 @@ module ModernC
 
       archives.reject { |archive| locked.dig(archive[:name], :version) == archive[:version] }.each do |archive|
         findings << finding('deps-lock', "prebuilt #{archive[:name]} #{archive[:version]} has no source line " \
-                                         'with that version; an archive must be a build of vendored source',
+                                         'with that version; an archive must be a build of pinned source',
                             file: 'deps.lock', line: archive[:line])
       end
 
@@ -520,10 +523,6 @@ module ModernC
 
         findings << finding('deps-lock', "deps/#{name} content hash is #{actual}, lock says #{entry[:hash]}",
                             file: 'deps.lock', line: entry[:line])
-      end
-      (locked.keys - names).each do |name|
-        findings << finding('deps-lock', "deps.lock lists #{name} but deps/#{name} does not exist",
-                            file: 'deps.lock', line: locked[name][:line])
       end
       findings
     end

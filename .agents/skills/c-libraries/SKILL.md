@@ -7,7 +7,7 @@ description: Find and evaluate existing C libraries before implementing function
 
 C has no standard package registry and a small standard library, so the temptation is to reimplement. Do not. Most capabilities have a mature, maintained C library. Reimplementing an S3 client, an HTTP stack or a TLS layer from scratch is a bug farm and weeks of work that a dependency replaces in an afternoon.
 
-The opposite failure is pulling in libraries on their own terms: each with its own build system, install step, macros, globals, allocation model and error scheme. That is C's legacy mess and the project does not inherit it. Every dependency enters under the `modern-c` contract: vendored source, pinned, built by the project, confined behind one wrapper. The library is a detail of one module, never a shape the whole program takes.
+The opposite failure is pulling in libraries on their own terms: each with its own build system, install step, macros, globals, allocation model and error scheme. That is C's legacy mess and the project does not inherit it. Every dependency enters under the `modern-c` contract: pinned source fetched by the build, built by the project, confined behind one wrapper. The library is a detail of one module, never a shape the whole program takes.
 
 ## Rule
 
@@ -29,13 +29,13 @@ Triggers that must start a search:
 ## Workflow
 
 1. **Name the capability precisely.** "Upload objects to S3 with multipart and SigV4" is searchable. "Storage" is not.
-2. **Check libmc first.** [libmc](https://github.com/sangar/libmc) is the foundation library every project vendors, `modern-c` rule 11. Its module table is in that skill. If it covers the capability, there is no search. If the capability is generic and small, or Apple's Foundation covers it (libmc's direction in that rule), the answer is a libmc PR, not a private helper or a project-level wrapper. A third-party library it needs is chosen with the report below and vendored into libmc.
+2. **Check libmc first.** [libmc](https://github.com/sangar/libmc) is the foundation library every project pins, `modern-c` rule 11. Its module table is in that skill. If it covers the capability, there is no search. If the capability is generic and small, or Apple's Foundation covers it (libmc's direction in that rule), the answer is a libmc PR, not a private helper or a project-level wrapper. A third-party library it needs is chosen with the report below and pinned in libmc's `deps.lock`.
 3. **Check the catalog below.** Most common needs are covered.
 4. **Check official SDKs.** Vendors with a C or C++ SDK usually have a C core underneath. AWS has the `aws-c-*` family. Look at the vendor's GitHub organisation before anything else.
 5. **Search.** Use web search with terms like `<capability> C library`, `<capability> C99`, `<capability> single header`. Check GitHub topics `c`, `c99`, `single-header`. Check package indexes that list C libraries: vcpkg, Conan, Homebrew, Debian `apt`, the Awesome C list on GitHub.
 6. **Evaluate each candidate** against the checklist below. Fetch the README and recent commit history rather than trusting memory; libraries get abandoned or renamed.
 7. **Report before writing code.** Give the user the library decision in the shape below while switching is still free. A trade-off delivered after the hand-written version exists is not a decision, it is a request to rewrite. If the choice is between two reasonable libraries, state the recommendation and proceed.
-8. **Integrate** under the `modern-c` dependency rules: copy the pinned source into `deps/<name>/`, record it in `deps.lock`, build it with the project's build system, and put it behind one wrapper module in `src/`. System packages, `pkg-config`, `find_package` and `FetchContent` are not integration options. If the project has an older convention, follow it and tell the user it diverges from the contract.
+8. **Integrate** under the `modern-c` dependency rules: trim the pinned source to what the build compiles plus its license, publish it as a release asset, pin it in `deps.lock`, build it with the project's build system, and put it behind one wrapper module in `src/`. System packages, `pkg-config`, `find_package` and `FetchContent` are not integration options. If the project has an older convention, follow it and tell the user it diverges from the contract.
 
 ## Library Decision Report
 
@@ -48,7 +48,7 @@ One paragraph per capability, before implementation starts:
 
 Example, written before the store module existed:
 
-> S3: `aws-c-s3` is the official client and gives the full credential chain, parallel multipart and checksums. It is nine CMake repositories vendored into `deps/`, which is a large tree but builds with the project, and its async event-loop API shapes the store wrapper internally. The alternative is libcurl, also vendored, with hand-written SigV4, roughly 900 lines, testable against MinIO on both platforms, and without instance-metadata or SSO credentials. Both are confined to `src/s3.c`. Recommendation: `aws-c-s3` if the daemon will ever run on AWS infrastructure, libcurl otherwise. Say which now.
+> S3: `aws-c-s3` is the official client and gives the full credential chain, parallel multipart and checksums. It is nine CMake repositories pinned in `deps.lock`, which is a large tree but builds with the project, and its async event-loop API shapes the store wrapper internally. The alternative is libcurl, also pinned, with hand-written SigV4, roughly 900 lines, testable against MinIO on both platforms, and without instance-metadata or SSO credentials. Both are confined to `src/s3.c`. Recommendation: `aws-c-s3` if the daemon will ever run on AWS infrastructure, libcurl otherwise. Say which now.
 
 ## Evaluation Checklist
 
@@ -93,7 +93,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 
 | Need | Library | Notes |
 |------|---------|-------|
-| AWS S3 | `awslabs/aws-c-s3` | Official. Multipart, SigV4, parallel transfers. Depends on `aws-c-common`, `aws-c-io`, `aws-c-http`, `aws-c-auth`, `aws-c-cal`, `aws-c-sdkutils`, `aws-checksums`, and `s2n-tls` on Linux. All CMake, all vendorable into `deps/`; the tree is large but it is source, which is the contract's preferred shape. Nothing in it is in Debian or Ubuntu, which is irrelevant when vendoring. |
+| AWS S3 | `awslabs/aws-c-s3` | Official. Multipart, SigV4, parallel transfers. Depends on `aws-c-common`, `aws-c-io`, `aws-c-http`, `aws-c-auth`, `aws-c-cal`, `aws-c-sdkutils`, `aws-checksums`, and `s2n-tls` on Linux. All CMake, all pinnable in `deps.lock`; the tree is large but it is source, which is the contract's preferred shape. Nothing in it is in Debian or Ubuntu, which is irrelevant when pinning source. |
 | AWS HTTP, auth, event streams | `awslabs/aws-c-http`, `aws-c-auth`, `aws-c-event-stream` | Same family. Use the family rather than hand-rolling SigV4. |
 | AWS all-in-one | `awslabs/aws-crt-cpp` is C++ | For pure C use the individual `aws-c-*` repos. |
 | Azure | `Azure/azure-sdk-for-c` | Official, embedded-oriented. |
@@ -133,7 +133,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 | JSON, simple | `DaveGamble/cJSON` | MIT. Easy API. Slower, allocation-heavy. |
 | JSON, streaming | `jansson`, `json-c` | MIT. |
 | JSON, tokenizer only | `zserge/jsmn` | MIT. Single header, zero allocation. |
-| YAML | libmc `mc/encoding/yaml.h` | On cyaml, vendored in libmc. |
+| YAML | libmc `mc/encoding/yaml.h` | On cyaml, pinned in libmc. |
 | TOML | `cktan/tomlc99` | MIT. |
 | INI | `benhoyt/inih` | BSD. |
 | XML | `libxml2`, `libexpat` | MIT. expat is small and streaming. |
@@ -171,7 +171,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 |------|---------|-------|
 | Regex | `PCRE2` | BSD. Perl-compatible, JIT. |
 | Regex, small | `kokke/tiny-regex-c`, `re2c` for compiled | |
-| Unicode normalisation, case, categories | `JuliaStrings/utf8proc` | MIT. Vendored in libmc behind `unicode.h`; use that. |
+| Unicode normalisation, case, categories | `JuliaStrings/utf8proc` | MIT. Pinned in libmc behind `unicode.h`; use that. |
 | ICU | `unicode-org/icu` | Large. Only when full locale support is needed. |
 | UTF-8 validation and conversion | libmc `mc/text/utf8.h` | |
 | Length-based strings | libmc `String` | Views plus arena-allocated copies. Do not add `sds`. |

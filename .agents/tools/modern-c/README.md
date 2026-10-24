@@ -11,12 +11,13 @@ ruby ~/.agents/tools/modern-c/modern-c hash <dir>
 
 `check` exits 0 with no findings, 1 with findings, 2 on a usage error. The level defaults to the one declared in the project's README, else 2.
 
-`hash` prints the content hash of a directory in the form `deps.lock` expects. Add a dependency with:
+`hash` prints the content hash of a directory in the form `deps.lock` expects. Add a dependency by trimming its source into `deps/<name>`, then:
 
 ```bash
-cp -R ~/src/yyjson-0.10.0 deps/yyjson
-echo "yyjson 0.10.0 https://github.com/ibireme/yyjson $(ruby ~/.agents/tools/modern-c/modern-c hash deps/yyjson)" >> deps.lock
+echo "yyjson 0.13.0 https://github.com/<owner>/<repo>/releases/download/deps-yyjson-0.13.0/yyjson-0.13.0.tar.gz $(ruby ~/.agents/tools/modern-c/modern-c hash deps/yyjson)" >> deps.lock
 ```
+
+and publish `deps/yyjson` as that release asset; libmc's `tools/publish-dep.sh` does both the packing and the check.
 
 Without arguments and with JSON on stdin, the tool reads `{"command": "check", "path": "...", "level": 2}` and answers in JSON. See `schema/`.
 
@@ -37,13 +38,13 @@ Without arguments and with JSON on stdin, the tool reads `{"command": "check", "
 | `ascii-text` | 1 | Calls to `isalpha`, `isalnum`, `isupper`, `islower`, `toupper`, `tolower`, `strcasecmp`, `strncasecmp`, `str_lower_ascii` or `str_upper_ascii`, which break on æ, ø and å. Allow it on the line for protocol tokens such as HTTP headers |
 | `build-system` | 2 | Makefile, Meson, autotools or other unsupported build files; no CMakeLists.txt or build.c; or both |
 | `layout` | 2 | Missing `src/`, `tests/` or `README.md`; a `vendor/` or `third_party/` directory |
-| `deps-lock` | 2 | `deps/` without `deps.lock`, entries without directories, directories without entries, malformed lines, content hash mismatch, an archive line with no source line of the same name and version |
+| `deps-lock` | 2 | `deps/` without `deps.lock`, directories without entries, malformed lines, content hash mismatch, an archive line with no source line of the same name and version |
 | `dep-leak` | 2 | A header from `deps/<name>/` included from a project header, or from more than one project file. `deps/libmc` is exempt: its headers are the project vocabulary |
 | `readme-profile` | 2 | README does not state the C standard or the Modern C level |
 | `clang-tidy` | 3 | No `.clang-tidy` file |
 | `fuzz` | 3 | No `tests/fuzz/` directory |
 
-Files under `deps/`, `build/`, `out/`, `cmake-build-*/` and `.git/` are not scanned. [libmc](https://github.com/sangar/libmc) is vendored as `deps/libmc` like any dependency and listed in `deps.lock`, but it may be included from anywhere.
+Files under `deps/`, `build/`, `out/`, `cmake-build-*/` and `.git/` are not scanned. [libmc](https://github.com/sangar/libmc) is pinned as `deps/libmc` in `deps.lock` like any dependency, but it may be included from anywhere.
 
 ## Suppressing a finding
 
@@ -63,11 +64,11 @@ Use these in dependency wrappers, where the contract permits `malloc` and librar
 
 ## deps.lock format
 
-Whitespace-separated fields; blank lines and `#` comments are ignored. A source line has four fields. An archive line, for a prebuilt archive of a vendored dependency, has five, with the platform third, named as in `cross`:
+Whitespace-separated fields; blank lines and `#` comments are ignored. A source line has four fields. An archive line, for a prebuilt archive of a dependency, has five, with the platform third, named as in `cross`:
 
 ```text
 # name version url hash
-curl 8.23.0 https://github.com/curl/curl/releases/download/curl-8_23_0/curl-8.23.0.tar.xz sha256:9c7cb181...
+curl 8.23.0 https://github.com/sangar/libmc/releases/download/deps-curl-8.23.0/curl-8.23.0.tar.gz sha256:9c7cb181...
 
 # name version platform url hash
 curl 8.23.0 macos-aarch64 https://github.com/sangar/libmc/releases/download/deps-curl-8.23.0/curl-8.23.0-macos-aarch64.tar.gz sha256:...
@@ -75,11 +76,11 @@ curl 8.23.0 linux-x86_64 https://github.com/sangar/libmc/releases/download/deps-
 curl 8.23.0 linux-aarch64 https://github.com/sangar/libmc/releases/download/deps-curl-8.23.0/curl-8.23.0-linux-aarch64.tar.gz sha256:...
 ```
 
-* An archive line's name and version match a source line, so every archive is a build of vendored source.
+* An archive line's name and version match a source line, so every archive is a build of pinned source.
 * An archive's hash is the sha256 of the downloaded file. The checker does not download it; the build verifies it.
-* The archive holds `lib/lib<name>.a` and the license file. Headers come from the vendored source.
+* The archive holds `lib/lib<name>.a` and the license file. Headers come from the fetched source.
 
-A source line's hash covers every file under `deps/<name>/` except `.git/` and `.DS_Store`, as relative path plus content, sorted, so it is the same on every machine.
+A source line's hash covers every file under `deps/<name>/` except `.DS_Store` and, at the top, `.git/` and the `deps/`, `out/` and `nob` a dependency's own build creates, as relative path plus content, sorted, so it is the same on every machine and for any archive of the same files. `deps/` itself is not committed: the build fetches each directory that is missing or differs, so a missing one is not a finding.
 
 ## Limitations
 

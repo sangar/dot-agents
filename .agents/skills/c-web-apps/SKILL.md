@@ -76,7 +76,7 @@ These choices look like oversights to an agent seeing them for the first time. K
 * **One worker per core.** Each worker has its own nonblocking event loop, `SO_REUSEPORT` listener, SQLite connection and arenas, and queries run inline. Application code never frees: process, worker, request and job each have their own arena.
 * **One binary.** Migrations, `public/`, assets, scripts and wasm modules are embedded with `#embed` and served at content-hashed paths. TLS terminates in a proxy in front. Deploying is copying the binary and keeping `storage/`.
 * **Machine-readable everything.** Logs are JSON lines on stdout, one per request with route, status, duration, query count and bytes allocated. Every `./nob` command takes `--format json`.
-* **The framework is extracted, not designed.** `src/framework/` gets a module when a feature first needs it, and it is written as a library from day one. When a second app needs it, it moves to its own repository, vendored as `deps/framework/`, and is deleted from both apps, never copied.
+* **The framework is extracted, not designed.** `src/framework/` gets a module when a feature first needs it, and it is written as a library from day one. When a second app needs it, it moves to its own repository, pinned as `deps/framework/`, and is deleted from both apps, never copied.
 
 ## Commands and Checks
 
