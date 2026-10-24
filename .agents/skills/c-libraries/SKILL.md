@@ -81,13 +81,15 @@ Already in every project as `deps/libmc`. Nothing here needs a search or a wrapp
 | String-keyed hash map, hashing, stable sort | `mc/container/strmap.h`, `mc/container/hash.h`, `mc/container/sort.h` |
 | SHA-256, HMAC, AWS SigV4 | `mc/crypto/sha256.h`, `mc/crypto/sigv4.h` |
 | JSON parse and encode, YAML parse | `mc/encoding/json.h`, `mc/encoding/yaml.h` |
+| Markdown to HTML, XML events | `mc/encoding/markdown.h`, `mc/encoding/xml.h` |
+| HTTPS client | `mc/net/http.h` |
 | Structured logging | `mc/log/log.h` |
 | Threads, thread pool, queue, cancellation | `mc/platform/platform.h`, `mc/concurrency/*.h` |
 | Files, directories, processes, environment, signals, sockets, clock | `mc/platform/platform.h` |
 | Recursive file watching, debouncing | `mc/platform/watch.h`, `mc/concurrency/debounce.h` |
 | launchd and systemd login services | `mc/platform/service.h` |
 
-libmc has no HTTP client yet. The first project that needs one adds it to libmc, with a decision report covering libcurl or a TLS library, rather than wrapping one privately. The same goes for regex, compression, XML and the other Foundation capabilities the catalog below still lists as third-party libraries.
+Regex, compression and the other Foundation capabilities the catalog below still lists as third-party libraries go the same way: the first project that needs one adds it to libmc, with a decision report, rather than wrapping a library privately.
 
 ### Cloud and vendor SDKs
 
@@ -103,7 +105,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 
 | Need | Library | Notes |
 |------|---------|-------|
-| HTTP/HTTPS client | `libcurl` | Everything. Also FTP, SMTP, WebSocket. |
+| HTTPS client | libmc `mc/net/http.h` | On libcurl, which also speaks FTP, SMTP and WebSocket. |
 | Embedded HTTP server, WebSocket, MQTT | `cesanta/mongoose` | Dual license GPL/commercial. Check license. |
 | HTTP server | `civetweb/civetweb` | MIT. Fork of mongoose from before the license change. |
 | WebSocket server and client | `libwebsockets` | MIT. |
@@ -136,7 +138,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 | YAML | libmc `mc/encoding/yaml.h` | On cyaml, pinned in libmc. |
 | TOML | `cktan/tomlc99` | MIT. |
 | INI | `benhoyt/inih` | BSD. |
-| XML | `libxml2`, `libexpat` | MIT. expat is small and streaming. |
+| XML | libmc `mc/encoding/xml.h` | Events on Expat. `libxml2` for XPath or validation. |
 | Protobuf | `protobuf-c/protobuf-c`, `nanopb/nanopb` | nanopb for constrained targets. |
 | MessagePack | `msgpack/msgpack-c`, `ludocode/mpack` | |
 | CBOR | `intel/tinycbor`, `PJK/libcbor` | |
@@ -224,10 +226,10 @@ When converting a Go project, map each imported package before writing anything.
 
 | Go | C |
 |----|---|
-| `net/http` client | `libcurl` |
+| `net/http` client | libmc `http.h` |
 | `net/http` server | `civetweb`, `mongoose`, `libwebsockets` |
 | `encoding/json` | libmc `json.h` |
-| `encoding/xml` | `libexpat`, `libxml2` |
+| `encoding/xml` | libmc `xml.h` |
 | `gopkg.in/yaml` | libmc `yaml.h` |
 | `crypto/tls` | `openssl`, `mbedtls`, `s2n-tls` |
 | `crypto/sha256`, `crypto/hmac` | libmc `sha256.h` |
