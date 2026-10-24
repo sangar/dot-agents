@@ -160,7 +160,7 @@ class TrelloTool
     when 429
       raise RateLimitError
     when 400
-      raise ValidationError, JSON.parse(response.body)['message'] rescue ValidationError.new('Bad request')
+      raise ValidationError, (JSON.parse(response.body)['message'] rescue response.body)
     else
       raise TrelloError.new("HTTP #{response.code}: #{response.body}", 'HTTP_ERROR', response.code.to_i >= 500)
     end

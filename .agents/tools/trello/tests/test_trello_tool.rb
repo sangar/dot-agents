@@ -200,6 +200,22 @@ class TrelloToolTest
       end
     end
 
+    test "reports a rejected write as a validation error" do
+      response = Net::HTTPBadRequest.new('1.1', '400', 'Bad Request')
+      response.instance_variable_set(:@body, 'invalid value for idList')
+      response.instance_variable_set(:@read, true)
+      Net::HTTP.alias_method :original_request, :request
+      Net::HTTP.define_method(:request) { |_request| response }
+      begin
+        result = TrelloTool.new('fake_key', 'fake_token').execute('create_card', { 'list_id' => 'abc', 'name' => 'x' })
+        raise "Expected failure, got #{result.inspect}" if result[:success]
+        raise "Expected VALIDATION_ERROR, got #{result[:error].inspect}" unless result[:error][:code] == 'VALIDATION_ERROR'
+        raise "Expected Trello's message, got #{result[:error][:message]}" unless result[:error][:message] == 'invalid value for idList'
+      ensure
+        Net::HTTP.alias_method :request, :original_request
+      end
+    end
+
     test "result includes execution metadata" do
       tool = TrelloTool.new('fake_key', 'fake_token')
       result = tool.execute('invalid_op', {})
