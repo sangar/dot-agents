@@ -324,7 +324,7 @@ uint32_t post_rules_title_error_count(const char *title, uint32_t length)
 }
 ```
 
-Only an entry point lives here; the rule itself is `post_validate`, compiled from `src/app/models/post_rules.c`. `./nob` builds it with `zig cc -target wasm32-wasi -mexec-model=reactor`, whose bundled libc gives libmc's arena `malloc` without importing anything from the host. `src/app/javascript/post_form.js` loads the module, copies the title into its memory through an exported allocator, validates as the user types and leaves the server to validate again on submit.
+Only an entry point lives here; the rule itself is `post_validate`, compiled from `src/app/models/post_rules.c`. `./nob` builds it with `zig cc -target wasm32-wasi -mexec-model=reactor`, whose bundled libc gives libmc's arena `malloc` without importing anything from the host. `src/app/javascript/post_form.js` loads the module, copies the title into its memory through an exported allocator, validates on submit before the request is sent, and leaves the server to validate again.
 
 ## tests/fixtures/posts.sql
 

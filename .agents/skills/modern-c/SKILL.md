@@ -43,7 +43,7 @@ Pick one per project and never add a second. Default order:
 1. **CMake >= 3.25** when any vendored dependency already ships CMake. Use presets, `FetchContent` is not used; dependencies are vendored, see rule 10.
 2. **`build.c`** self-bootstrapping build program (nob style) when every dependency is plain source. The build description is C, the build tool is the compiler. libmc's `tools/build.c` is the reference implementation.
 
-Required targets in either: `build`, `test`, `check` (warnings, static analysis), `clean`, `ci`. `ci` runs `build`, `test` and `check` plus the cross-compiled builds, and is run locally before every push. It is the project's CI; there is no cloud CI config, see the `local-ci` rule.
+Required targets in either: `build`, `test`, `check` (warnings, static analysis), `clean`, `ci`. `ci` runs `build`, `test` and `check` plus the cross-compiled builds, and is run locally before every push. It is the project's CI. Never add cloud CI config; an existing workflow stays, but it is not the gate, see the `local-ci` rule.
 
 A project that produces an executable also has `install` and `uninstall`. `install` copies the release binary to `$PREFIX/bin`, default `~/.local`, overridable, with `DESTDIR` honoured for packaging, and nothing else: no config files, no daemons, no edits to shell profiles. `uninstall` removes exactly what `install` placed. CMake's `install()` covers the first; it has no uninstall, so add a target that removes the paths in `install_manifest.txt`. In `build.c`, both are subcommands.
 
@@ -225,9 +225,9 @@ Flags, always on:
 -Wstrict-prototypes -Wimplicit-fallthrough -Wno-unused-parameter
 ```
 
-Debug and `ci` builds add `-fsanitize=address,undefined -fno-omit-frame-pointer`. `ci` also runs `clang-tidy` with the project's checks file, and tests under the sanitizers.
+Debug and `ci` builds add `-fsanitize=address,undefined -fno-omit-frame-pointer`. `ci` also runs the tests under the sanitizers, and at Level 3 `clang-tidy` with the project's checks file.
 
-Fuzz any parser or decoder that consumes external input with libFuzzer. Keep the corpus in `tests/fuzz/`.
+At Level 3, fuzz any parser or decoder that consumes external input with libFuzzer. Keep the corpus in `tests/fuzz/`.
 
 ## 15. ABI Only When Promised
 
@@ -239,8 +239,8 @@ A library with external users declares an ABI boundary deliberately: opaque type
 
 Code that works on ASCII breaks on the first æ, ø or å. Handle them from the first line, not when a user reports it.
 
-* Every `String` holding text is valid UTF-8 in NFC. Convert where text enters: `utf8_is_valid` or `utf8_from_latin1` for bytes from files, sockets and users; `unicode_nfc` for filenames, which macOS returns decomposed, with "å" as `a` followed by U+030A.
-* Case conversion, case-insensitive comparison and sorting of text go through libmc's `mc/text/unicode.h`: `unicode_lower`, `unicode_upper`, `unicode_equal_ignore_case`. `ctype.h`, `strcasecmp` and `str_*_ascii` are for protocol tokens only, such as HTTP headers and hex, with `// modern-c: allow ascii-text` on the line.
+* Every `String` holding text is valid UTF-8 in NFC. Convert where text enters: `utf8_is_valid` or `utf8_from_latin1` for bytes from files, sockets and users; `unicode_nfc` for filenames, which macOS returns decomposed, with "å" as `a` followed by U+030A. Normalize a copy for comparing, searching and display, and pass the original bytes back to the filesystem: Linux filenames are byte-exact.
+* Case conversion, case-insensitive comparison and sorting of text go through libmc's `mc/text/unicode.h`: `unicode_lower`, `unicode_upper`, `unicode_equal_ignore_case`. `ctype.h`, `strcasecmp` and `str_*_ascii` are for protocol tokens only, such as HTTP headers and hex, with `// modern-c: allow ascii-text` on the line. libmc's `str_equal_ignore_case`, `str_compare_ignore_case` and `strlist_sort` are ASCII-only too: use them for tokens and identifiers, not for text people read.
 * Sorting for people uses `unicode_compare_norwegian` and `unicode_sort_norwegian`, not `str_compare`: bytewise order puts å before æ and ø.
 * Bytes are not characters. Count, pad and cut by code point with `utf8_decode` and `utf8_count`, never in the middle of a sequence.
 * Source files are UTF-8, and literals may contain æ, ø and å directly.

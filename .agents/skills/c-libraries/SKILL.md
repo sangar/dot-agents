@@ -133,14 +133,14 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 | JSON, simple | `DaveGamble/cJSON` | MIT. Easy API. Slower, allocation-heavy. |
 | JSON, streaming | `jansson`, `json-c` | MIT. |
 | JSON, tokenizer only | `zserge/jsmn` | MIT. Single header, zero allocation. |
-| YAML | `yaml/libyaml` | MIT. |
+| YAML | libmc `mc/encoding/yaml.h` | On cyaml, vendored in libmc. |
 | TOML | `cktan/tomlc99` | MIT. |
 | INI | `benhoyt/inih` | BSD. |
 | XML | `libxml2`, `libexpat` | MIT. expat is small and streaming. |
 | Protobuf | `protobuf-c/protobuf-c`, `nanopb/nanopb` | nanopb for constrained targets. |
 | MessagePack | `msgpack/msgpack-c`, `ludocode/mpack` | |
 | CBOR | `intel/tinycbor`, `PJK/libcbor` | |
-| CSV | `libcsv`, `semitrivial/csv_parser` | Or write it, CSV is small enough. |
+| CSV | libmc `mc/encoding/csv.h` | RFC 4180, one record at a time. |
 | Base64, URL encoding | `libcurl` has URL API; base64 is small enough to write | |
 
 ### Compression and archives
@@ -173,7 +173,7 @@ libmc has no HTTP client yet. The first project that needs one adds it to libmc,
 | Regex, small | `kokke/tiny-regex-c`, `re2c` for compiled | |
 | Unicode normalisation, case, categories | `JuliaStrings/utf8proc` | MIT. Vendored in libmc behind `unicode.h`; use that. |
 | ICU | `unicode-org/icu` | Large. Only when full locale support is needed. |
-| UTF-8 validation and conversion | `simdutf` is C++; `utf8.h` by sheredom is single header C | |
+| UTF-8 validation and conversion | libmc `mc/text/utf8.h` | |
 | Length-based strings | libmc `String` | Views plus arena-allocated copies. Do not add `sds`. |
 
 ### Containers and allocators
@@ -227,7 +227,7 @@ When converting a Go project, map each imported package before writing anything.
 | `net/http` server | `civetweb`, `mongoose`, `libwebsockets` |
 | `encoding/json` | libmc `json.h` |
 | `encoding/xml` | `libexpat`, `libxml2` |
-| `gopkg.in/yaml` | `libyaml` |
+| `gopkg.in/yaml` | libmc `yaml.h` |
 | `crypto/tls` | `openssl`, `mbedtls`, `s2n-tls` |
 | `crypto/sha256`, `crypto/hmac` | libmc `sha256.h` |
 | `crypto/*`, `golang.org/x/crypto` | `libsodium`, `openssl` libcrypto |
