@@ -484,17 +484,29 @@ module ModernC
 
       findings = []
       locked = {}
+      archives = []
       project.read('deps.lock').lines.each_with_index do |raw, index|
         line = raw.strip
         next if line.empty? || line.start_with?('#')
 
         fields = line.split
-        if fields.size != 4 || fields[3] !~ HASH_PATTERN
-          findings << finding('deps-lock', 'malformed entry; expected: name version url sha256:<hex>',
+        unless [4, 5].include?(fields.size) && fields.last =~ HASH_PATTERN
+          findings << finding('deps-lock', 'malformed entry; expected: name version url sha256:<hex>, ' \
+                                           'or name version platform url sha256:<hex> for a prebuilt archive',
                               file: 'deps.lock', line: index + 1)
           next
         end
-        locked[fields[0]] = { hash: fields[3], line: index + 1 }
+        if fields.size == 5
+          archives << { name: fields[0], version: fields[1], line: index + 1 }
+        else
+          locked[fields[0]] = { version: fields[1], hash: fields[3], line: index + 1 }
+        end
+      end
+
+      archives.reject { |archive| locked.dig(archive[:name], :version) == archive[:version] }.each do |archive|
+        findings << finding('deps-lock', "prebuilt #{archive[:name]} #{archive[:version]} has no source line " \
+                                         'with that version; an archive must be a build of vendored source',
+                            file: 'deps.lock', line: archive[:line])
       end
 
       names.each do |name|

@@ -125,6 +125,24 @@ class ModernCTest < Minitest::Test
     assert_includes File.read(File.join(FIXTURES, 'clean', 'deps.lock')), first.strip
   end
 
+  def test_deps_lock_accepts_archive_lines_that_match_a_source_line
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, 'deps', 'curl'))
+      File.write(File.join(dir, 'deps', 'curl', 'curl.c'), "int curl;\n")
+      source_hash, = Open3.capture2('ruby', TOOL, 'hash', File.join(dir, 'deps', 'curl'))
+      archive = "https://github.com/sangar/libmc/releases/download/deps-curl-8.23.0/curl.tar.gz sha256:#{'a' * 64}"
+      File.write(File.join(dir, 'deps.lock'), <<~LOCK)
+        curl 8.23.0 https://github.com/curl/curl #{source_hash.strip}
+        curl 8.23.0 macos-aarch64 #{archive}
+        curl 8.23.0 linux-x86_64 #{archive}
+        curl 8.22.0 linux-aarch64 #{archive}
+      LOCK
+      result = run_check(dir)
+      sites = result['findings'].select { |f| f['rule'] == 'deps-lock' }.map { |f| [f['file'], f['line']] }
+      assert_equal [['deps.lock', 4]], sites
+    end
+  end
+
   def test_stdin_json_input_reports_json
     input = JSON.generate('command' => 'check', 'path' => File.join(FIXTURES, 'clean'), 'level' => 1)
     stdout, _, status = Open3.capture3('ruby', TOOL, stdin_data: input)

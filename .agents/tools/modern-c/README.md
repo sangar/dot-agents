@@ -37,7 +37,7 @@ Without arguments and with JSON on stdin, the tool reads `{"command": "check", "
 | `ascii-text` | 1 | Calls to `isalpha`, `isalnum`, `isupper`, `islower`, `toupper`, `tolower`, `strcasecmp`, `strncasecmp`, `str_lower_ascii` or `str_upper_ascii`, which break on æ, ø and å. Allow it on the line for protocol tokens such as HTTP headers |
 | `build-system` | 2 | Makefile, Meson, autotools or other unsupported build files; no CMakeLists.txt or build.c; or both |
 | `layout` | 2 | Missing `src/`, `tests/` or `README.md`; a `vendor/` or `third_party/` directory |
-| `deps-lock` | 2 | `deps/` without `deps.lock`, entries without directories, directories without entries, malformed lines, content hash mismatch |
+| `deps-lock` | 2 | `deps/` without `deps.lock`, entries without directories, directories without entries, malformed lines, content hash mismatch, an archive line with no source line of the same name and version |
 | `dep-leak` | 2 | A header from `deps/<name>/` included from a project header, or from more than one project file. `deps/libmc` is exempt: its headers are the project vocabulary |
 | `readme-profile` | 2 | README does not state the C standard or the Modern C level |
 | `clang-tidy` | 3 | No `.clang-tidy` file |
@@ -63,14 +63,23 @@ Use these in dependency wrappers, where the contract permits `malloc` and librar
 
 ## deps.lock format
 
-One dependency per line, four whitespace-separated fields. Blank lines and `#` comments are ignored.
+Whitespace-separated fields; blank lines and `#` comments are ignored. A source line has four fields. An archive line, for a prebuilt archive of a vendored dependency, has five, with the platform third, named as in `cross`:
 
 ```text
 # name version url hash
-yyjson 0.10.0 https://github.com/ibireme/yyjson sha256:e0ff8d4f...
+curl 8.23.0 https://github.com/curl/curl/releases/download/curl-8_23_0/curl-8.23.0.tar.xz sha256:9c7cb181...
+
+# name version platform url hash
+curl 8.23.0 macos-aarch64 https://github.com/sangar/libmc/releases/download/deps-curl-8.23.0/curl-8.23.0-macos-aarch64.tar.gz sha256:...
+curl 8.23.0 linux-x86_64 https://github.com/sangar/libmc/releases/download/deps-curl-8.23.0/curl-8.23.0-linux-x86_64.tar.gz sha256:...
+curl 8.23.0 linux-aarch64 https://github.com/sangar/libmc/releases/download/deps-curl-8.23.0/curl-8.23.0-linux-aarch64.tar.gz sha256:...
 ```
 
-The hash covers every file under `deps/<name>/` except `.git/` and `.DS_Store`, as relative path plus content, sorted, so it is the same on every machine.
+* An archive line's name and version match a source line, so every archive is a build of vendored source.
+* An archive's hash is the sha256 of the downloaded file. The checker does not download it; the build verifies it.
+* The archive holds `lib/lib<name>.a` and the license file. Headers come from the vendored source.
+
+A source line's hash covers every file under `deps/<name>/` except `.git/` and `.DS_Store`, as relative path plus content, sorted, so it is the same on every machine.
 
 ## Limitations
 

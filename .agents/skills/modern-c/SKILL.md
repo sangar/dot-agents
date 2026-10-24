@@ -155,8 +155,14 @@ Programmer errors are assertions, not `Error` values. See `c-best-practices` rul
 Borrowed from Zig: the repository contains everything needed to build.
 
 * Each dependency is copied into `deps/<name>/` at a pinned upstream version.
-* `deps.lock` records one line per dependency: `name version url sha256:<hash>`. The hash comes from `modern-c hash deps/<name>`. Updating a dependency is a commit that changes the lock and the directory together.
+* `deps.lock` records one line per dependency, `name version url sha256:<hash>` with the hash from `modern-c hash deps/<name>`, and one line per platform for each prebuilt archive. Updating a dependency is a commit that changes the lock and the directory together.
 * Dependencies build with the project's build system. If upstream uses CMake, its `CMakeLists.txt` is used via `add_subdirectory`. If it uses anything else, the project builds its sources directly.
+* **Prebuilt archives.** A dependency whose source build needs its own configuration step, such as curl or mbedTLS, may also ship as a static archive per platform, as a cache of building it from source:
+  * `./nob deps` builds it from the vendored source with the project's configuration and zig, deterministically, so a rebuild gives the same hash.
+  * It is published as a release asset of the project's GitHub repository, tagged `deps-<name>-<version>`, with the dependency's license inside. Assets are never replaced; a changed archive gets a new tag.
+  * `deps.lock` pins each platform's archive by URL and sha256, and the build refuses a mismatch.
+  * The build downloads it on first use into `~/.cache/modern-c/<sha256>/` and works offline after that. Without the archive or the network, it builds the dependency from source.
+  * Static archives only, never `.so` or `.dylib`.
 * No `apt install`, `brew install`, `pkg-config`, or `find_package` for anything the project could carry. The single permitted exception is the platform TLS and certificate store, where tracking OS security updates outweighs reproducibility. Declare it in the README.
 * Every dependency sits behind one wrapper module in `src/`. Its headers are included only there. Its types, macros, error codes and allocations do not cross the wrapper. Swapping the dependency changes one file. libmc is the one exception, rule 11.
 
