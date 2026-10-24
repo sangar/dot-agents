@@ -82,7 +82,7 @@ Already in every project as `deps/libmc`. Nothing here needs a search or a wrapp
 | SHA-256, HMAC, AWS SigV4 | `mc/crypto/sha256.h`, `mc/crypto/sigv4.h` |
 | JSON parse and encode, YAML parse | `mc/encoding/json.h`, `mc/encoding/yaml.h` |
 | Markdown to HTML, XML events | `mc/encoding/markdown.h`, `mc/encoding/xml.h` |
-| HTTPS client, sending mail | `mc/net/http.h`, `mc/net/smtp.h` |
+| HTTPS client, sending mail, FTPS | `mc/net/http.h`, `mc/net/smtp.h`, `mc/net/ftp.h` |
 | Structured logging | `mc/log/log.h` |
 | Threads, thread pool, queue, cancellation | `mc/platform/platform.h`, `mc/concurrency/*.h` |
 | Files, directories, processes, environment, signals, sockets, clock | `mc/platform/platform.h` |
