@@ -78,14 +78,15 @@ Already in every project as `deps/libmc`. Nothing here needs a search or a wrapp
 | Length-based strings, builder, split, join, percent encoding | `mc/text/str.h` |
 | UTF-8, NFC, Unicode case, Norwegian sort order, globs, lexical paths | `mc/text/utf8.h`, `mc/text/unicode.h`, `mc/text/glob.h`, `mc/text/path.h` |
 | Durations, RFC 3339, byte sizes, aligned tables | `mc/text/fmt.h`, `mc/text/table.h` |
-| String-keyed hash map, hashing, stable sort | `mc/container/strmap.h`, `mc/container/hash.h`, `mc/container/sort.h` |
+| String-keyed hash map, set of ids, hashing, stable sort | `mc/container/strmap.h`, `mc/container/idtable.h`, `mc/container/hash.h`, `mc/container/sort.h` |
 | SHA-256, HMAC, AWS SigV4 | `mc/crypto/sha256.h`, `mc/crypto/sigv4.h` |
-| JSON parse and encode, YAML parse | `mc/encoding/json.h`, `mc/encoding/yaml.h` |
-| Markdown to HTML, XML events | `mc/encoding/markdown.h`, `mc/encoding/xml.h` |
-| HTTPS client, sending mail, FTPS | `mc/net/http.h`, `mc/net/smtp.h`, `mc/net/ftp.h` |
-| Structured logging | `mc/log/log.h` |
+| JSON parse and encode, YAML parse, `.env` files | `mc/encoding/json.h`, `mc/encoding/yaml.h`, `mc/encoding/dotenv.h` |
+| Markdown to HTML, XML events, CSV records | `mc/encoding/markdown.h`, `mc/encoding/xml.h`, `mc/encoding/csv.h` |
+| HTTPS client, sending mail, S3, FTPS | `mc/net/http.h`, `mc/net/smtp.h`, `mc/net/s3.h`, `mc/net/ftp.h` |
+| Structured logging, rotated log files | `mc/log/log.h`, `mc/log/logfile.h` |
 | Threads, thread pool, queue, cancellation | `mc/platform/platform.h`, `mc/concurrency/*.h` |
-| Files, directories, processes, environment, signals, sockets, clock | `mc/platform/platform.h` |
+| Files, directories, processes, environment, signals, sockets, clock | `mc/platform/platform.h`, `mc/platform/frame.h` |
+| Raw terminal, pseudo-terminals, CPU, memory and load | `mc/platform/terminal.h`, `mc/platform/pty.h`, `mc/platform/sysinfo.h` |
 | Recursive file watching, debouncing | `mc/platform/watch.h`, `mc/concurrency/debounce.h` |
 | launchd and systemd login services | `mc/platform/service.h` |
 
@@ -95,11 +96,12 @@ Regex, compression and the other Foundation capabilities the catalog below still
 
 | Need | Library | Notes |
 |------|---------|-------|
-| AWS S3 | `awslabs/aws-c-s3` | Official. Multipart, SigV4, parallel transfers. Depends on `aws-c-common`, `aws-c-io`, `aws-c-http`, `aws-c-auth`, `aws-c-cal`, `aws-c-sdkutils`, `aws-checksums`, and `s2n-tls` on Linux. All CMake, all pinnable in `deps.lock`; the tree is large but it is source, which is the contract's preferred shape. Nothing in it is in Debian or Ubuntu, which is irrelevant when pinning source. |
-| AWS HTTP, auth, event streams | `awslabs/aws-c-http`, `aws-c-auth`, `aws-c-event-stream` | Same family. Use the family rather than hand-rolling SigV4. |
+| AWS S3 and compatible stores | libmc `mc/net/s3.h` | Default. Multipart uploads, retries, credentials found as the AWS tools find them, pooled connections. |
+| AWS S3, parallel transfers | `awslabs/aws-c-s3` | Official. Only when libmc's client lacks what a project needs, such as instance-metadata or SSO credentials. Multipart, SigV4, parallel transfers. Depends on `aws-c-common`, `aws-c-io`, `aws-c-http`, `aws-c-auth`, `aws-c-cal`, `aws-c-sdkutils`, `aws-checksums`, and `s2n-tls` on Linux. All CMake, all pinnable in `deps.lock`; the tree is large but it is source, which is the contract's preferred shape. Nothing in it is in Debian or Ubuntu, which is irrelevant when pinning source. |
+| AWS HTTP, auth, event streams | `awslabs/aws-c-http`, `aws-c-auth`, `aws-c-event-stream` | Same family. For signing alone, libmc `mc/crypto/sigv4.h`. |
 | AWS all-in-one | `awslabs/aws-crt-cpp` is C++ | For pure C use the individual `aws-c-*` repos. |
 | Azure | `Azure/azure-sdk-for-c` | Official, embedded-oriented. |
-| Generic REST | `libcurl` + a JSON library | Fallback when a vendor has no C SDK. |
+| Generic REST | libmc `mc/net/http.h` and `mc/encoding/json.h` | When a vendor has no C SDK. |
 
 ### Networking and HTTP
 
@@ -230,6 +232,9 @@ When converting a Go project, map each imported package before writing anything.
 | `net/http` server | `civetweb`, `mongoose`, `libwebsockets` |
 | `encoding/json` | libmc `json.h` |
 | `encoding/xml` | libmc `xml.h` |
+| `encoding/csv` | libmc `csv.h` |
+| `net/smtp` | libmc `smtp.h` |
+| `github.com/jlaffaye/ftp` | libmc `ftp.h` |
 | `gopkg.in/yaml` | libmc `yaml.h` |
 | `crypto/tls` | `openssl`, `mbedtls`, `s2n-tls` |
 | `crypto/sha256`, `crypto/hmac` | libmc `sha256.h` |
@@ -239,7 +244,7 @@ When converting a Go project, map each imported package before writing anything.
 | `database/sql` + `mattn/go-sqlite3` | `sqlite3` |
 | `database/sql` + `lib/pq`, `pgx` | `libpq` |
 | `github.com/go-redis/redis` | `hiredis` |
-| `github.com/aws/aws-sdk-go` s3 | `aws-c-s3`, or libmc `sigv4.h` with an HTTP client |
+| `github.com/aws/aws-sdk-go` s3 | libmc `s3.h` |
 | `regexp` | `PCRE2` |
 | `unicode/utf8`, `strings`, `path/filepath` | libmc `utf8.h`, `str.h`, `path.h`, `glob.h` |
 | `unicode`, `golang.org/x/text` | libmc `unicode.h` |

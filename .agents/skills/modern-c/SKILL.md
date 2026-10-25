@@ -183,13 +183,13 @@ Before writing a helper, read its module table:
 |------|---------|--------|
 | core | `base.h`, `error.h`, `arena.h` | `countof`, `unused`, `Error`, `Err`, arenas, `arena_grow` for dynamic arrays |
 | text | `str.h`, `utf8.h`, `unicode.h`, `glob.h`, `path.h`, `fmt.h`, `table.h` | views, builders, split and join, percent encoding, UTF-8, NFC, Unicode case, Norwegian sort order, globs, lexical paths, durations, RFC 3339, byte sizes, aligned columns |
-| container | `strmap.h`, `hash.h`, `sort.h` | string-keyed hash map, FNV-1a, stable sort and top-k |
+| container | `strmap.h`, `idtable.h`, `hash.h`, `sort.h` | string-keyed hash map, set of ids whose keys live elsewhere, FNV-1a, stable sort and top-k |
 | crypto | `sha256.h`, `sigv4.h` | SHA-256, HMAC, hex, AWS Signature V4 |
-| platform | `platform.h`, `watch.h`, `service.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets, recursive file watching, launchd and systemd login services |
-| concurrency | `cancel.h`, `debounce.h`, `queue.h`, `threadpool.h` | cancellation tokens, per-key debouncing, blocking queue, thread pool, parallel loops |
-| encoding | `node.h`, `json.h`, `yaml.h`, `markdown.h`, `xml.h` | document tree, strict JSON parse and encode, YAML parse, Markdown to HTML, XML events |
-| net | `http.h`, `smtp.h`, `ftp.h` | HTTPS requests with HTTP/2, decoded gzip, allowed hosts and limits; mail with attachments over TLS; files over FTPS |
-| log | `log.h` | structured logging, text or JSON lines |
+| platform | `platform.h`, `frame.h`, `watch.h`, `service.h`, `terminal.h`, `pty.h`, `sysinfo.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets and socket pairs, length-prefixed frames, recursive file watching, launchd and systemd login services, the terminal in raw mode, pseudo-terminals, CPU, memory, network and load figures |
+| concurrency | `cancel.h`, `debounce.h`, `outbox.h`, `queue.h`, `threadpool.h`, `waker.h` | cancellation tokens, per-key debouncing, bounded bytes for a writer thread, blocking queue, thread pool, parallel loops, waking a waiting thread |
+| encoding | `node.h`, `json.h`, `yaml.h`, `dotenv.h`, `markdown.h`, `xml.h`, `csv.h` | document tree, strict JSON parse and encode, YAML parse, `.env` files, Markdown to HTML, XML events, CSV records |
+| net | `http.h`, `smtp.h`, `s3.h`, `ftp.h` | HTTPS requests with HTTP/2, decoded gzip, allowed hosts and limits; mail with attachments over TLS; S3 and compatible stores; files over FTPS |
+| log | `log.h`, `logfile.h` | structured logging, text or JSON lines, log files rotated at a size limit |
 
 **Bridging stays in the project.** libmc is plain C with a plain C ABI and knows nothing about who calls it. It takes and returns its own types: `String`, `Arena *`, `Error`, `Err *`, fixed-layout structs, opaque handles. A project that uses it from Swift, C++, Rust, Zig, Go or Objective-C does the translation on its own side, in one bridging module: a Swift bridging header and a `String` to `Swift.String` layer, an `extern "C"` wrapper with RAII handles in C++, cgo conversions in Go. Nothing for that goes into libmc: no `#ifdef __cplusplus` or `extern "C"` blocks in its headers, the caller adds them; no Foundation or CoreFoundation types such as `NSString` or `CFString` in its headers; framework APIs only inside `src/platform/`, where an OS service needs them; no callback shapes designed for one host language; no OS-specific API outside `src/platform/`. A libmc PR that exists only to make one language's bridge easier is declined. The bridge changes instead.
 
