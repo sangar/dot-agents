@@ -46,6 +46,8 @@ class ModernCTest < Minitest::Test
       ['layout', nil, nil],
       ['malloc', 'src/main.c', 33],
       ['malloc', 'src/main.c', 37],
+      ['ndebug', 'CMakeLists.txt', 3],
+      ['ndebug', 'CMakeLists.txt', nil],
       ['nodiscard', 'src/other.c', 4],
       ['nodiscard', 'src/store.h', 8],
       ['platform-header', 'src/main.c', 3],
@@ -120,6 +122,18 @@ class ModernCTest < Minitest::Test
       result = run_check(dir, '--level', '1')
       sites = result['findings'].map { |f| [f['rule'], f['line']] }
       assert_equal [['global-mutable', 3], ['global-mutable', 4]], sites.sort
+    end
+  end
+
+  def test_ndebug_in_build_c_is_reported_where_it_is_defined
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, 'tools'))
+      File.write(File.join(dir, 'tools', 'build.c'), <<~C)
+        static const char *const DEBUG_FLAGS[] = { "-g", "-UNDEBUG" };
+        static const char *const RELEASE_FLAGS[] = { "-O2", "-DNDEBUG" };
+      C
+      sites = run_check(dir, '--level', '1')['findings'].select { |f| f['rule'] == 'ndebug' }
+      assert_equal [['tools/build.c', 2]], sites.map { |f| [f['file'], f['line']] }
     end
   end
 

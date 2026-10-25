@@ -19,6 +19,7 @@ module ModernC
     'nodiscard' => 1,
     'warnings' => 1,
     'sanitizers' => 1,
+    'ndebug' => 1,
     'ascii-text' => 1,
     'build-system' => 2,
     'layout' => 2,
@@ -453,6 +454,21 @@ module ModernC
 
       [finding('sanitizers', "build has no -fsanitize=#{missing.join(',')} configuration",
                file: project.build_files.first)]
+    end
+
+    def check_ndebug
+      findings = project.build_files.flat_map do |rel|
+        project.read(rel).lines.each_with_index.filter_map do |line, index|
+          next unless line =~ %r{[-/]D\s*NDEBUG\b|\bNDEBUG\b}
+
+          finding('ndebug', 'build defines NDEBUG, which removes assert from release builds', file: rel, line: index + 1)
+        end
+      end
+      if project.build_files.include?('CMakeLists.txt') && project.build_text !~ /-UNDEBUG\b/
+        findings << finding('ndebug', "CMake's release configurations define NDEBUG; add -UNDEBUG to the compile options",
+                            file: 'CMakeLists.txt')
+      end
+      findings
     end
 
     def check_build_system
