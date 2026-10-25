@@ -22,7 +22,7 @@ Write C in the style and spirit demonstrated by Vjekoslav Babić in the developm
 
 This is an **inferred style guide**, based on Vjekoslav's publicly documented File Pilot development practices. It is not an official Vjekoslav coding standard.
 
-The 29 detailed rules with rationale and code examples are in [reference.md](reference.md). Read it when designing a subsystem, allocator, string or container API, or when reviewing C code against this style.
+The 30 detailed rules with rationale and code examples are in [reference.md](reference.md). Read it when designing a subsystem, allocator, string or container API, or when reviewing C code against this style.
 
 This guide covers how to write code inside a module. Project structure, build, dependencies and error model are the `modern-c` contract. Arenas, strings, errors and the platform layer come from [libmc](https://github.com/sangar/libmc), and a reusable helper is a libmc PR, not a file in `src/`. Before implementing a non-trivial capability such as HTTP, S3, TLS, JSON, YML or compression, use the `c-libraries` skill to find an existing library. This style guide covers how to write the code you do write, not a reason to write everything yourself.
 
@@ -69,6 +69,8 @@ When unsure, bias toward:
 * arenas over scattered heap allocations
 * scratch arenas for temporary work
 * pools for reusable fixed-size objects
+* handles, not stored pointers, for pooled objects and array elements
+* tagged unions with exhaustive switches for fixed sets of kinds
 * explicit ownership
 * pointer + length strings
 * explicit counts and capacities

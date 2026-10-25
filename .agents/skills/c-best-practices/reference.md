@@ -213,6 +213,25 @@ Use:
 * pool → individual reusable objects
 * normal allocation → when a different lifetime/ownership model genuinely requires it
 
+### Store Handles, Not Pointers
+
+A pointer to a pooled object dangles once the object is freed and its slot reused. Use a pointer for the length of one operation; store a handle:
+
+```c
+typedef struct {
+    uint32_t index;
+    uint32_t generation;
+} Node_Handle;
+
+Node_Handle pool_alloc(Node_Pool *pool);
+Node       *pool_get(Node_Pool *pool, Node_Handle handle);
+void        pool_free(Node_Pool *pool, Node_Handle handle);
+```
+
+Each slot stores a generation that `pool_free` increments. `pool_get` returns `NULL` when the handle's generation no longer matches, so a stale handle is a check the caller makes, not a use-after-free. Give each pool its own handle type, so the compiler rejects a handle into the wrong pool.
+
+The same goes for elements of a dynamic array: growth can move them, so store the index, not `&array.items[i]`.
+
 ---
 
 # 5. Avoid Unnecessary Allocator Abstractions
@@ -992,3 +1011,41 @@ Pool *
 Use the actual abstraction.
 
 This follows the direction Vjekoslav documented when he removed the generic `Allocator` wrapper and used arenas/pools directly.
+
+---
+
+# 30. Closed Variants Are Tagged Unions With Exhaustive Switches
+
+When a value is one of a fixed set of kinds, make it a tagged union, not a struct of function pointers:
+
+```c
+typedef enum {
+    SHAPE_CIRCLE,
+    SHAPE_RECT,
+} Shape_Kind;
+
+typedef struct {
+    Shape_Kind kind;
+    union {
+        struct { float radius; } circle;
+        struct { float width, height; } rect;
+    };
+} Shape;
+```
+
+Switch on the kind with a case for each and no `default:`:
+
+```c
+float shape_area(Shape shape)
+{
+    switch (shape.kind) {
+    case SHAPE_CIRCLE: return 3.14159265f * shape.circle.radius * shape.circle.radius;
+    case SHAPE_RECT:   return shape.rect.width * shape.rect.height;
+    }
+    abort();
+}
+```
+
+`-Wswitch`, part of `-Wall`, then makes every switch that misses a kind added later a build error under `-Werror`. A `default:` hides that. The `abort()` catches a corrupt kind without the undefined behaviour of `unreachable()`.
+
+Keep function-pointer tables for open sets, where code outside the module adds kinds: plugins, platform backends.

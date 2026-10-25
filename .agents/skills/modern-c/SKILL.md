@@ -129,6 +129,8 @@ store_put(store, key, value);
 
 Permitted: `static const` tables, and a single process-wide context created in `main` and passed down. Thread-local state is treated as global and needs the same justification.
 
+**Threads share nothing.** A thread writes only memory it owns, and no other thread reads that memory while it can change. Threads talk by sending messages through libmc's `queue.h`, and a message owns what it carries: the bytes themselves, or an arena the sender hands over and stops using. A parallel loop in `threadpool.h` fits the rule: its input does not change while it runs, and each worker writes only its own slice of the output. A mutex or atomic in project code is shared mutable state and needs the same justification as a global.
+
 ## 9. One Error Model
 
 The error type is libmc's `Error` from `mc/core/error.h`. A project does not define its own.
@@ -235,7 +237,11 @@ Flags, always on:
 
 Debug and `ci` builds add `-fsanitize=address,undefined -fno-omit-frame-pointer`. `ci` also runs the tests under the sanitizers, and at Level 3 `clang-tidy` with the project's checks file.
 
-At Level 3, fuzz any parser or decoder that consumes external input with libFuzzer. Keep the corpus in `tests/fuzz/`.
+Release builds keep `assert`. `NDEBUG` is never defined, so bounds and invariant checks ship, as Go, Rust and Odin ship theirs. CMake's release configurations add `-DNDEBUG`; add `-UNDEBUG` to the project's compile options to undo it. Where profiling shows a check in a hot loop costs, assert the lengths once before the loop so the compiler can remove the checks inside it.
+
+Bytes from outside the process go through one decoder per format, which checks every length, count, tag and offset before it returns a value or an `Error`. Code after it trusts the value: a bad one there is a programmer error, asserted, not an `Error`.
+
+At Level 3, fuzz each of those decoders with libFuzzer. Keep the corpus in `tests/fuzz/`.
 
 ## 15. ABI Only When Promised
 
@@ -279,12 +285,15 @@ It covers the mechanical rules below with file and line. Suppress a finding only
 * no new `#ifdef` outside `src/platform/`
 * no new function-like macro
 * no new file-scope mutable `static` or global
+* no memory shared between threads outside a queue message or a parallel loop's own output slice
 * every fallible function returns `Error` and is `[[nodiscard]]`
 * every allocating function takes an `Arena *` or is named `create` or `clone`
 * every helper that is not specific to the project is in libmc, or in an open libmc PR the user has been told about
 * Swift, C++ or other language bridging lives in one module in the project, and no libmc change exists for its sake
 * every new dependency is in `deps/`, in `deps.lock`, behind one wrapper, and builds with the project's build system
 * text is compared, cased and sorted with libmc's Unicode functions, and tests cover æ, ø and å
+* external bytes go through one decoder that checks them completely before use
+* no build configuration leaves `NDEBUG` defined
 * `ci` passes locally with sanitizers
 * a project that produces an executable has `install` and `uninstall`, and `uninstall` leaves nothing behind
 * the README's profile declaration is still true
