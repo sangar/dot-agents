@@ -6,7 +6,6 @@ alwaysApply: true
 # Local CI
 
 You're the CI. Your machine is fast and the checks are cheap to run here, so run them yourself rather than pushing and waiting for a remote pipeline to tell you what broke.
-Projects in ~/Work/make-app should follow the projects config, or add / update the conventions for sibling projects.
 
 ## One local entry point
 
