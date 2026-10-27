@@ -52,6 +52,13 @@ Explanatory comments should be kept to a minimum. Most comments are a sign that 
 - Remove dead code, unused imports, and unused parameters as you encounter them in code you are already changing
 - Handle errors where they can be meaningfully dealt with; don't swallow them silently
 
+## Deprecations
+
+- Never add anything deprecated, archived or end-of-life (dependencies, container images, services, APIs); check its status before adding it
+- Replace deprecated usage in code you are already changing when the fix stays within that code
+- Report deprecations elsewhere instead of fixing them: name each one and its replacement in your summary, and offer it as a separate change
+- Make each upgrade or replacement its own focused change, and run every check after it
+
 ## Before Finishing
 
 - Read the diff as if you were the reviewer
