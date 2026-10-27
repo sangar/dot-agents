@@ -41,6 +41,13 @@ After making changes to code, **ALWAYS** run the relevant tests to ensure nothin
 - Avoid testing multiple unrelated things in one test
 - Check both positive and negative cases
 
+### S3 Storage
+
+MinIO is archived and unmaintained; don't use it in tests, including Testcontainers' MinIO module. Use RustFS or SeaweedFS, or a similar maintained S3-compatible server, with a pinned image tag:
+
+- **RustFS**: `rustfs/rustfs`, S3 on port 9000 like MinIO, credentials in `RUSTFS_ACCESS_KEY` and `RUSTFS_SECRET_KEY`
+- **SeaweedFS**: `chrislusf/seaweedfs`, S3 on port 8333, credentials in `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, buckets pre-created from `S3_BUCKET`. Always set the credentials: without them it accepts every request.
+
 ## Debugging Failures
 
 - Read error messages carefully

@@ -48,7 +48,7 @@ One paragraph per capability, before implementation starts:
 
 Example, written before the store module existed:
 
-> S3: `aws-c-s3` is the official client and gives the full credential chain, parallel multipart and checksums. It is nine CMake repositories pinned in `deps.lock`, which is a large tree but builds with the project, and its async event-loop API shapes the store wrapper internally. The alternative is libcurl, also pinned, with hand-written SigV4, roughly 900 lines, testable against MinIO on both platforms, and without instance-metadata or SSO credentials. Both are confined to `src/s3.c`. Recommendation: `aws-c-s3` if the daemon will ever run on AWS infrastructure, libcurl otherwise. Say which now.
+> S3: `aws-c-s3` is the official client and gives the full credential chain, parallel multipart and checksums. It is nine CMake repositories pinned in `deps.lock`, which is a large tree but builds with the project, and its async event-loop API shapes the store wrapper internally. The alternative is libcurl, also pinned, with hand-written SigV4, roughly 900 lines, testable against RustFS on both platforms, and without instance-metadata or SSO credentials. Both are confined to `src/s3.c`. Recommendation: `aws-c-s3` if the daemon will ever run on AWS infrastructure, libcurl otherwise. Say which now.
 
 ## Evaluation Checklist
 
@@ -282,7 +282,7 @@ The wrapper module is where the library stops and the project begins.
 * Library error codes map to the project `Error` enum inside the wrapper.
 * Library allocations are routed through its allocator hooks into an arena, or owned and freed within the wrapper so nothing escapes.
 * Library globals and init calls, such as `curl_global_init`, happen once inside the wrapper's context create and destroy.
-* The wrapper is tested through its own header, against a real instance where one exists, such as a local MinIO for S3.
+* The wrapper is tested through its own header, against a real instance where one exists, such as a local RustFS for S3.
 
 Done right, the decision report's "confined to one file" claim is literally true, or "one directory" where capabilities share the dependency.
 
