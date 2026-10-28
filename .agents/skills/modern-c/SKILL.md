@@ -43,6 +43,8 @@ Pick one per project and never add a second. Default order:
 1. **CMake >= 3.25** when any dependency already ships CMake. Use presets; `FetchContent` is not used, the build fetches what `deps.lock` pins, see rule 10.
 2. **`build.c`** self-bootstrapping build program (nob style) when every dependency is plain source. The build description is C, the build tool is the compiler. libmc's `tools/build.c` is the reference implementation.
 
+**Translation units.** A program's own code is one translation unit, as in File Pilot: one `.c` file includes every other, the build compiles it whole on every run, and nothing tracks which file includes which header. File-scope names are unique across the program. A platform file whose OS headers clash with the program's names, as CoreServices' `Rect` and `Style` do, compiles as a unit of its own. A library shipped as a static archive, such as libmc, keeps one translation unit per module, so a program links only the modules it calls: built as one unit, libmc grows a program that calls one string function from 37 KB to 2.9 MB and makes it link every framework libmc uses. Dependencies compile apart from the project's code, once per version `deps.lock` pins: their objects are rebuilt when `deps.lock`, the compiler or a compile command changes, never because one of the project's headers did. libmc's `tools/build.c` does both, and its test program is one unit.
+
 Required targets in either: `build`, `test`, `check` (warnings, static analysis), `clean`, `ci`. `ci` runs `build`, `test` and `check` plus the cross-compiled builds, and is run locally before every push. It is the project's CI. Never add cloud CI config; an existing workflow stays, but it is not the gate, see the `local-ci` rule.
 
 A project that produces an executable also has `install` and `uninstall`. `install` copies the release binary to `$PREFIX/bin`, default `~/.local`, overridable, with `DESTDIR` honoured for packaging, and nothing else: no config files, no daemons, no edits to shell profiles. `uninstall` removes exactly what `install` placed. CMake's `install()` covers the first; it has no uninstall, so add a target that removes the paths in `install_manifest.txt`. In `build.c`, both are subcommands.
@@ -291,6 +293,7 @@ It covers the mechanical rules below with file and line. Suppress a finding only
 * every helper that is not specific to the project is in libmc, or in an open libmc PR the user has been told about
 * Swift, C++ or other language bridging lives in one module in the project, and no libmc change exists for its sake
 * every new dependency is in `deps/`, in `deps.lock`, behind one wrapper, and builds with the project's build system
+* a program's own code and its tests are each one translation unit; a library keeps one per module; dependencies are not rebuilt by a change to the project's headers
 * text is compared, cased and sorted with libmc's Unicode functions, and tests cover æ, ø and å
 * external bytes go through one decoder that checks them completely before use
 * no build configuration leaves `NDEBUG` defined
