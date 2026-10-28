@@ -1,13 +1,13 @@
 ---
 name: c-best-practices
-description: Write C in the Vjekoslav Babić / File Pilot style - arenas, scratch arenas and pools over scattered malloc/free, explicit memory lifetime and ownership, pointer + length strings, explicit unsigned counts, contiguous cache-friendly data, minimal abstraction, platform conversions at the boundary, expensive work off the UI thread. Use when writing, reviewing or refactoring C code, designing C data structures or allocators, or when the user mentions arenas, scratch memory, pools, or performance-oriented C.
+description: Write C in the Vjekoslav Krajačić / File Pilot style - arenas, scratch arenas and pools over scattered malloc/free, explicit memory lifetime and ownership, pointer + length strings, explicit unsigned counts, contiguous cache-friendly data, minimal abstraction, platform conversions at the boundary, expensive work off the UI thread. Use when writing, reviewing or refactoring C code, designing C data structures or allocators, or when the user mentions arenas, scratch memory, pools, or performance-oriented C.
 ---
 
 # Vjekoslav-Inspired C Best Practices
 
 ## Purpose
 
-Write C in the style and spirit demonstrated by Vjekoslav Babić in the development of File Pilot and related projects:
+Write C in the style and spirit demonstrated by Vjekoslav Krajačić in the development of File Pilot and related projects:
 
 * performance-oriented
 * explicit memory ownership
