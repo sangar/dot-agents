@@ -116,7 +116,7 @@ A function taking an `Arena *` allocates only from it. A function without one do
 
 ## 7. One Allocation Model
 
-The project allocates through libmc arenas (`mc/core/arena.h`), `arena_mark` and `arena_release` for scratch work, and pools as in `c-best-practices`. Running out of memory aborts; `ERR_OUT_OF_MEMORY` is for wrapped dependencies that report it. `malloc` appears only inside libmc's arena, project pool implementations, and dependency wrappers.
+The project allocates through libmc arenas (`mc/core/arena.h`), `arena_mark` and `arena_release` for scratch work, and libmc pools (`mc/container/pool.h`) for items freed one at a time. Running out of memory aborts; `ERR_OUT_OF_MEMORY` is for wrapped dependencies that report it. `malloc` appears only inside libmc's arena and dependency wrappers.
 
 A dependency must either accept allocator hooks that route into the project's arenas, or have every one of its allocations confined inside its wrapper module so nothing it allocates escapes.
 
@@ -187,7 +187,7 @@ Before writing a helper, read its module table:
 |------|---------|--------|
 | core | `base.h`, `error.h`, `arena.h` | `countof`, `unused`, `Error`, `Err`, arenas, `arena_grow` for dynamic arrays |
 | text | `str.h`, `utf8.h`, `unicode.h`, `glob.h`, `path.h`, `fmt.h`, `table.h` | views, builders, split and join, percent encoding, UTF-8, NFC, Unicode case, Norwegian sort order, globs, lexical paths, durations, RFC 3339, byte sizes, aligned columns |
-| container | `strmap.h`, `idtable.h`, `hash.h`, `sort.h` | string-keyed hash map, set of ids whose keys live elsewhere, FNV-1a, stable sort and top-k |
+| container | `strmap.h`, `idtable.h`, `pool.h`, `hash.h`, `sort.h` | string-keyed hash map, set of ids whose keys live elsewhere, items of one size behind handles that go stale when freed, FNV-1a, stable sort and top-k |
 | crypto | `sha256.h`, `sigv4.h` | SHA-256, HMAC, hex, AWS Signature V4 |
 | platform | `platform.h`, `frame.h`, `watch.h`, `service.h`, `terminal.h`, `pty.h`, `sysinfo.h` | clock, locale-independent floats, threads, mutexes, files, directories, processes, environment, signals, sockets and socket pairs, length-prefixed frames, recursive file watching, launchd and systemd login services, the terminal in raw mode, pseudo-terminals, CPU, memory, network and load figures |
 | concurrency | `cancel.h`, `debounce.h`, `outbox.h`, `queue.h`, `threadpool.h`, `waker.h` | cancellation tokens, per-key debouncing, bounded bytes for a writer thread, blocking queue, thread pool, parallel loops, waking a waiting thread |
@@ -202,7 +202,7 @@ Before writing a helper, read its module table:
 **Contributing.** When the project needs shared code libmc lacks, or a new `Error` code, or a platform call:
 
 1. Clone `github.com/sangar/libmc`, branch from `master`.
-2. Add `include/mc/<area>/<module>.h` with contract comments, `src/<area>/<module>.c`, and cases in `tests/test_<module>.c` registered in `tests/test.h` and `tests/main.c`. Follow the conventions in its README: arena-allocating functions take `Arena *`, fallible ones return `Error` with a trailing `Err *`, no globals, nothing for a host language or framework. A new dependency needs a `c-libraries` decision report the user has approved, is published and pinned in libmc's `deps.lock`, and stays inside one module, bundled as rule 10 describes.
+2. Add `include/mc/<area>/<module>.h` with contract comments, `src/<area>/<module>.c`, and cases in `tests/test_<module>.c`, included and registered in `tests/main.c`. Follow the conventions in its README: arena-allocating functions take `Arena *`, fallible ones return `Error` with a trailing `Err *`, no globals, nothing for a host language or framework. A new dependency needs a `c-libraries` decision report the user has approved, is published and pinned in libmc's `deps.lock`, and stays inside one module, bundled as rule 10 describes.
 3. Run `./nob check`. It must pass clean under the sanitizers and the `modern-c` checker.
 4. Push the branch and open the pull request with `gh pr create`, describing what the module does and which project needed it. Follow the user's commit rules; no AI attribution.
 5. Pin the branch commit in the project's `deps.lock` with GitHub's archive of that commit, so the project builds now. A wrong hash makes the build print the right one. After the merge, re-pin to the merge commit on `master`.

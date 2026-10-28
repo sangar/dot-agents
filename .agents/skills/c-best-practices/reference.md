@@ -124,12 +124,12 @@ void arena_destroy(Arena *arena);
 For temporary work:
 
 ```c
-Arena_Temp temp = scratch_begin();
+ArenaMark mark = arena_mark(scratch);
 
 ...
 /* temporary allocations */
 
-scratch_end(temp);
+arena_release(mark);
 ```
 
 The scratch arena should make temporary allocation effectively disappear from the business logic.
@@ -143,7 +143,7 @@ Vjekoslav specifically documented moving toward **heavier use of scratch arenas*
 When a function needs temporary memory, prefer:
 
 ```c
-Scratch scratch = scratch_begin();
+ArenaMark mark = arena_mark(scratch);
 
 char *path = ...;
 Entry *entries = ...;
@@ -151,10 +151,12 @@ SortKey *keys = ...;
 
 ...
 
-scratch_end(scratch);
+arena_release(mark);
 ```
 
 rather than manually managing every temporary allocation.
+
+The scratch arena is a parameter, `Arena *scratch`, never a thread-local one fetched by `scratch_begin()`: thread-local state is global state, which `modern-c` forbids, and the parameter shows the reader which functions allocate.
 
 Scratch memory is particularly appropriate for:
 
@@ -183,23 +185,15 @@ When objects have:
 
 use a pool rather than general-purpose allocation.
 
-Conceptually:
+libmc's `Pool` (`mc/container/pool.h`) holds items of one size:
 
 ```c
-typedef struct Node Node;
+Pool *nodes = pool_create(arena, sizeof(Node));
 
-typedef struct {
-    Node *free_list;
-    ...
-} Node_Pool;
-```
-
-Then:
-
-```c
-Node *node = pool_alloc(&pool);
+PoolHandle handle = pool_alloc(nodes);
+Node *node = pool_get(nodes, handle);
 ...
-pool_free(&pool, node);
+pool_free(nodes, handle);
 ```
 
 Pools are useful when individual objects really do need independent destruction.
@@ -215,20 +209,15 @@ Use:
 
 ### Store Handles, Not Pointers
 
-A pointer to a pooled object dangles once the object is freed and its slot reused. Use a pointer for the length of one operation; store a handle:
+A pointer to a pooled object dangles once the object is freed and its slot reused. Use a pointer for the length of one operation; store a handle.
+
+Each slot stores a generation that `pool_free` changes. `pool_get` returns `nullptr` when the handle's generation no longer matches, so a stale handle is a check the caller makes, not a use-after-free. Give each pool its own handle type, so the compiler rejects a handle into the wrong pool:
 
 ```c
 typedef struct {
-    uint32_t index;
-    uint32_t generation;
-} Node_Handle;
-
-Node_Handle pool_alloc(Node_Pool *pool);
-Node       *pool_get(Node_Pool *pool, Node_Handle handle);
-void        pool_free(Node_Pool *pool, Node_Handle handle);
+    PoolHandle slot;
+} NodeHandle;
 ```
-
-Each slot stores a generation that `pool_free` increments. `pool_get` returns `NULL` when the handle's generation no longer matches, so a stale handle is a check the caller makes, not a use-after-free. Give each pool its own handle type, so the compiler rejects a handle into the wrong pool.
 
 The same goes for elements of a dynamic array: growth can move them, so store the index, not `&array.items[i]`.
 
@@ -588,21 +577,6 @@ void process_file(Arena *scratch, ...)
     Foo *foo = arena_push(scratch, sizeof(*foo));
 
     ...
-}
-```
-
-Even better when the scratch arena is implicit in the surrounding operation:
-
-```c
-void process_file(...)
-{
-    Scratch scratch = scratch_begin();
-
-    Foo *foo = scratch_push(scratch, sizeof(*foo));
-
-    ...
-
-    scratch_end(scratch);
 }
 ```
 
