@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Local CI
 
+A project rule named `local-ci.md` replaces this one.
+
 You're the CI. Your machine is fast and the checks are cheap to run here, so run them yourself rather than pushing and waiting for a remote pipeline to tell you what broke.
 
 ## One local entry point
