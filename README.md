@@ -5,7 +5,7 @@ This repository contains configuration, tools, and skills for AI agents running 
 ## Overview
 
 This is a personal agent configuration repository that provides:
-- **Skills**: Reusable domain-specific capabilities (Trello, VictoriaLogs, Errbit, etc.)
+- **Skills**: Reusable domain-specific capabilities (C, web apps, git analysis, etc.)
 - **Tools**: Command-line utilities for external service integration
 - **Rules**: Persistent guidance for AI agent behavior
 - **Planner Configuration**: System prompts and workflows for agent orchestration
@@ -31,18 +31,12 @@ This is a personal agent configuration repository that provides:
 │   │   ├── create-rule/
 │   │   ├── create-skill/
 │   │   ├── create-tool/
-│   │   ├── errbit/
 │   │   ├── git-scripts/
 │   │   ├── migrate-to-skills/
-│   │   ├── modern-c/
-│   │   ├── trello/
-│   │   └── victoria-logs/
+│   │   └── modern-c/
 │   └── tools/                 # External tool integrations
-│       ├── errbit/
 │       ├── git/
-│       ├── modern-c/
-│       ├── trello/
-│       └── vlogs/
+│       └── modern-c/
 ├── .claude/
 │   ├── CLAUDE.md              # Claude-specific configuration
 │   └── skills/                # Symlinks into .agents/skills/ for Claude Code discovery
@@ -64,22 +58,16 @@ This is a personal agent configuration repository that provides:
 | `create-rule` | Create persistent AI guidance rules |
 | `create-skill` | Author new agent skills |
 | `create-tool` | Create external tool integrations |
-| `errbit` | Interface with Errbit error tracking |
 | `git-scripts` | Analyze git repository history and patterns |
 | `migrate-to-skills` | Convert rules and commands to skills format |
 | `modern-c` | Project contract for C: one compiler, standard and build system, [libmc](https://github.com/sangar/libmc) for shared code, vendored pinned deps, one error model, no globals |
-| `trello` | Interface with Trello boards and cards |
-| `victoria-logs` | Query and analyze VictoriaLogs |
 
 ## Available Tools
 
 | Tool | Purpose | Language |
 |------|---------|----------|
-| `errbit` | Error tracking integration | Ruby |
 | `git-scripts` | Git analysis utilities | Shell |
 | `modern-c` | Check C projects against the modern-c contract, hash deps.lock entries | Ruby |
-| `trello` | Trello API integration | Ruby |
-| `vlogs` | VictoriaLogs queries | Ruby |
 
 ## Setup
 
@@ -103,12 +91,6 @@ Tools can be invoked from the command line or by agents:
 # Git analysis
 .agents/tools/git/git-what-changed
 .agents/tools/git/git-who-built
-
-# Trello operations
-.agents/tools/trello/tool.rb <operation> [args]
-
-# VictoriaLogs queries
-.agents/tools/vlogs/vlogs <query>
 
 # Modern C contract check
 .agents/tools/modern-c/modern-c check path/to/project
