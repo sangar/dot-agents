@@ -24,6 +24,7 @@ Agent tools are located in `~/.agents/tools/` to provide agents access to AI too
 # Testing
 
 @~/.agents/rules/testing.md
+@~/.agents/rules/no-stubbing.md
 
 # Coding
 

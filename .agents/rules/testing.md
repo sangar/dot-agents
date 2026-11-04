@@ -24,7 +24,7 @@ After making changes to code, **ALWAYS** run the relevant tests to ensure nothin
 - Use descriptive test names that explain the expected behavior
 - Group related tests with describe/context blocks
 - Test outputs/behavior, not implementation
-- Use test doubles sparingly — only mock external dependencies (APIs, Stripe), not internal code
+- Don't stub your own code or infrastructure; stub only at the network edge (see `no-stubbing.md`)
 - Tests should not break on refactoring
 - Don't test individual parameters separately when they use the same code path
 - Keep test count to a minimum, remove redundant or unnecessary tests
