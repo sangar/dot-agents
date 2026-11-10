@@ -71,7 +71,7 @@ This is a personal agent configuration repository that provides:
 
 ## Setup
 
-On a new machine, clone the repository and run the install script once. It symlinks `~/.agents`, `~/.claude/CLAUDE.md` and `~/.claude/skills` into the repository and is safe to rerun.
+On a new machine, clone the repository and run the install script once. It symlinks `~/.agents`, `~/.claude/CLAUDE.md` and `~/.claude/skills` into the repository and is safe to rerun. Anything already at those paths that is not a symlink is moved aside to `<path>.bak.<timestamp>`.
 
 ```bash
 ./install.sh

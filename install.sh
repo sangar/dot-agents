@@ -9,8 +9,9 @@ link() {
   target="$1"
   path="$2"
   if [ -e "$path" ] && [ ! -L "$path" ]; then
-    echo "skip: $path exists and is not a symlink" >&2
-    return
+    backup="$path.bak.$(date +%Y%m%d%H%M%S)"
+    mv "$path" "$backup"
+    echo "moved: $path -> $backup"
   fi
   mkdir -p "$(dirname "$path")"
   ln -sfn "$target" "$path"
